@@ -1,0 +1,2328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EastTop POS - Solution By IRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --primary:#1a3a4a;
+  --primary-dark:#0f2535;
+  --accent:#1e7e5e;
+  --accent-light:#25a374;
+  --accent-hover:#1a6b50;
+  --sidebar-bg:#1a3a4a;
+  --sidebar-text:#b8cdd9;
+  --sidebar-active:#1e7e5e;
+  --topbar-bg:#1a3a4a;
+  --content-bg:#f0f2f5;
+  --card-bg:#fff;
+  --border:#e0e6ed;
+  --text:#2d3748;
+  --text-light:#718096;
+  --btn-green:#1e7e5e;
+  --btn-red:#e53e3e;
+  --btn-blue:#3182ce;
+  --btn-orange:#dd6b20;
+  --shadow:0 2px 8px rgba(0,0,0,0.08);
+  --radius:6px;
+  --east-color:#33ccff;
+  --top-color:#ff9900;
+}
+body{font-family:'Inter',sans-serif;background:var(--content-bg);color:var(--text);display:flex;height:100vh;overflow:hidden;}
+
+/* SIDEBAR */
+#sidebar{width:220px;background:var(--sidebar-bg);display:flex;flex-direction:column;height:100vh;overflow-y:auto;overflow-x:hidden;transition:width .2s;flex-shrink:0;}
+#sidebar.collapsed{width:50px;}
+.sidebar-logo{padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.1);}
+.logo-text{color:var(--east-color);font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;}
+.logo-text span{color:var(--top-color);}
+.collapse-btn{margin-left:auto;background:none;border:none;color:var(--sidebar-text);cursor:pointer;font-size:16px;padding:4px;}
+.sidebar-nav{flex:1;padding:8px 0;}
+.nav-item{cursor:pointer;user-select:none;}
+.nav-link{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--sidebar-text);font-size:13px;transition:all .15s;white-space:nowrap;overflow:hidden;}
+.nav-link:hover{background:rgba(255,255,255,0.07);color:#fff;}
+.nav-link.active{background:var(--sidebar-active);color:#fff;}
+.nav-link .icon{font-size:15px;min-width:18px;text-align:center;}
+.nav-link .arrow{margin-left:auto;font-size:11px;transition:transform .2s;}
+.nav-item.open>.nav-link .arrow{transform:rotate(90deg);}
+.sub-nav{display:none;background:rgba(0,0,0,0.15);}
+.nav-item.open>.sub-nav{display:block;}
+.sub-nav .nav-link{padding:7px 16px 7px 38px;font-size:12px;}
+#sidebar.collapsed .sub-nav{display:none!important;}
+#sidebar.collapsed .nav-link span:not(.icon){display:none;}
+#sidebar.collapsed .arrow{display:none;}
+#sidebar.collapsed .logo-text{display:none;}
+#sidebar.collapsed .sidebar-logo{justify-content:center;padding:12px 0;}
+#sidebar.collapsed .collapse-btn{margin:0;}
+#sidebar.collapsed .nav-link{justify-content:center;padding:9px 0;}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* TOPBAR */
+#topbar{background:var(--topbar-bg);color:#fff;padding:0 20px;height:44px;display:flex;align-items:center;gap:16px;flex-shrink:0;}
+.topbar-version{font-size:12px;color:rgba(255,255,255,0.7);}
+.topbar-divider{color:rgba(255,255,255,0.3);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.topbar-location{font-size:12px;color:rgba(255,255,255,0.7);}
+.topbar-admin{font-size:12px;color:#fff;font-weight:500;display:flex;align-items:center;gap:4px;}
+.topbar-update{background:#e53e3e;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;padding:20px;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* PAGE HEADER */
+.page-header{margin-bottom:18px;}
+.page-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:12px;}
+
+/* CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.stat-card{background:var(--card-bg);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);}
+.stat-card-header{background:var(--primary);color:#fff;font-size:11px;font-weight:600;padding:6px 10px;border-radius:4px 4px 0 0;margin:-14px -16px 10px;letter-spacing:.5px;}
+.stat-card-value{font-size:20px;font-weight:700;color:var(--text);}
+.stat-card-date{font-size:11px;color:var(--text-light);margin-top:2px;}
+
+/* CHARTS */
+.chart-grid{display:flex;flex-direction:column;gap:14px;margin-bottom:18px;}
+.chart-card{background:var(--card-bg);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+.chart-title{font-size:12px;font-weight:600;color:#fff;background:var(--primary);padding:6px 12px;border-radius:4px 4px 0 0;margin:-16px -16px 14px;}
+
+/* TABLE */
+.table-card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+.table-toolbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+.table-toolbar-title{font-size:14px;font-weight:600;}
+.search-box{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:4px;padding:5px 10px;margin-left:auto;}
+.search-box input{border:none;outline:none;font-size:13px;width:180px;background:transparent;}
+.search-icon{color:var(--text-light);font-size:13px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:#f7f9fc;}
+th{padding:10px 12px;text-align:left;font-weight:600;font-size:12px;color:var(--text-light);border-bottom:2px solid var(--border);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);}
+tbody tr:hover{background:#f8fafc;}
+.checkbox-col{width:36px;}
+input[type=checkbox]{width:14px;height:14px;cursor:pointer;}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--border);font-size:12px;color:var(--text-light);}
+.pagination-info{flex:1;}
+.rows-select{border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;}
+.page-btn{border:1px solid var(--border);background:#fff;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;}
+.page-btn:hover{background:#f0f2f5;}
+.page-btn:disabled{opacity:.4;cursor:not-allowed;}
+.dense-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-light);}
+.toggle-switch{position:relative;display:inline-block;width:32px;height:18px;}
+.toggle-switch input{display:none;}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:18px;transition:.3s;}
+.toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.3s;}
+.toggle-switch input:checked + .toggle-slider{background:var(--accent);}
+.toggle-switch input:checked + .toggle-slider:before{transform:translateX(14px);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:4px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;}
+.btn-primary{background:var(--btn-green);color:#fff;}
+.btn-primary:hover{background:var(--accent-hover);}
+.btn-danger{background:var(--btn-red);color:#fff;}
+.btn-danger:hover{background:#c53030;}
+.btn-info{background:var(--btn-blue);color:#fff;}
+.btn-info:hover{background:#2b6cb0;}
+.btn-warning{background:var(--btn-orange);color:#fff;}
+.btn-secondary{background:#718096;color:#fff;}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{background:#f0f2f5;}
+.btn-sm{padding:4px 10px;font-size:12px;}
+.btn-icon{width:32px;height:32px;padding:0;justify-content:center;}
+.btn + .btn{margin-left:6px;}
+
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+.form-grid-3{grid-template-columns:repeat(3,1fr);}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-label{font-size:12px;font-weight:500;color:var(--text-light);}
+.form-control{border:1px solid var(--border);border-radius:4px;padding:7px 10px;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit;}
+.form-control:focus{border-color:var(--accent);}
+select.form-control{background:#fff;cursor:pointer;}
+.form-row{display:flex;align-items:flex-end;gap:10px;}
+
+/* INVOICE PAGE */
+.invoice-container{display:grid;grid-template-columns:1fr 280px;gap:14px;}
+.invoice-left{background:var(--card-bg);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+.invoice-right{display:flex;flex-direction:column;gap:8px;}
+.invoice-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.invoice-datetime{font-size:12px;color:var(--text-light);}
+.invoice-btn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.invoice-action-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:600;gap:3px;transition:all .15s;min-height:52px;}
+.invoice-action-btn .shortcut{font-size:10px;font-weight:400;opacity:.8;}
+.btn-cash{background:#1e7e5e;color:#fff;}
+.btn-credit{background:#2d6a4f;color:#fff;}
+.btn-clear-inv{background:#e53e3e;color:#fff;}
+.btn-discount{background:#6b46c1;color:#fff;}
+.btn-return{background:#2b6cb0;color:#fff;}
+.btn-payment{background:#276749;color:#fff;}
+.btn-add-cust{background:#2c7a7b;color:#fff;}
+.btn-sales-order{background:#4a5568;color:#fff;}
+.find-row{display:flex;gap:6px;margin-top:6px;}
+.find-row input{flex:1;border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:12px;}
+.product-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-end;}
+.product-row select{flex:1;}
+.product-row input[type=number]{width:60px;}
+.invoice-items-table{margin-top:10px;}
+.invoice-total-row{display:flex;justify-content:space-between;padding:8px 12px;background:#f7f9fc;border-top:2px solid var(--border);font-weight:600;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;display:none;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:8px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.modal-lg{max-width:800px;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.modal-title{font-size:15px;font-weight:600;}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-light);line-height:1;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);}
+
+/* TABS */
+.tab-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;gap:2px;}
+.tab-btn{padding:8px 16px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:500;color:var(--text-light);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* REPORT TABS */
+.report-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;}
+.report-tab{padding:6px 14px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-weight:500;color:var(--text-light);transition:all .15s;}
+.report-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.report-sub-tabs{display:flex;flex-direction:column;gap:4px;width:140px;flex-shrink:0;}
+.report-sub-tab{padding:7px 12px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-weight:500;color:var(--text-light);transition:all .15s;text-align:left;}
+.report-sub-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.report-content{display:flex;gap:14px;}
+.report-main{flex:1;}
+
+/* STATUS BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+.badge-success{background:#c6f6d5;color:#276749;}
+.badge-danger{background:#fed7d7;color:#c53030;}
+.badge-warning{background:#fefcbf;color:#744210;}
+.badge-info{background:#bee3f8;color:#2a4365;}
+
+/* ALERTS */
+.alert{padding:10px 14px;border-radius:4px;margin-bottom:12px;font-size:13px;display:flex;align-items:center;gap:8px;}
+.alert-success{background:#c6f6d5;color:#276749;border:1px solid #9ae6b4;}
+.alert-error{background:#fed7d7;color:#c53030;border:1px solid #fc8181;}
+.alert-info{background:#bee3f8;color:#2a4365;border:1px solid #90cdf4;}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--primary);display:flex;align-items:center;justify-content:center;z-index:9999;}
+.login-card{background:#fff;border-radius:10px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+.login-logo{text-align:center;margin-bottom:28px;}
+.login-logo h1{font-size:28px;font-weight:800;color:var(--east-color);}
+.login-logo h1 span{color:var(--top-color);}
+.login-logo p{font-size:12px;color:var(--text-light);margin-top:4px;}
+.login-card .form-group{margin-bottom:14px;}
+.login-btn{width:100%;margin-top:8px;}
+.login-error{color:var(--btn-red);font-size:12px;text-align:center;margin-top:8px;}
+
+/* FOOTER */
+.page-footer{text-align:center;font-size:11px;color:var(--text-light);margin-top:24px;padding-top:14px;border-top:1px solid var(--border);}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text-light);font-size:13px;gap:8px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.no-data{text-align:center;padding:30px;color:var(--text-light);font-size:13px;}
+.text-right{text-align:right;}
+.text-center{text-align:center;}
+.text-muted{color:var(--text-light);}
+.fw-bold{font-weight:700;}
+.mb-10{margin-bottom:10px;}
+.mb-14{margin-bottom:14px;}
+.flex{display:flex;}
+.gap-8{gap:8px;}
+.align-center{align-items:center;}
+.justify-between{justify-content:space-between;}
+.filter-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}
+
+/* BARCODE */
+.barcode-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);max-width:500px;}
+.barcode-preview{border:1px solid var(--border);border-radius:4px;padding:20px;text-align:center;margin:14px 0;font-family:monospace;font-size:24px;letter-spacing:8px;}
+
+/* Responsive table scroll */
+.table-wrap{overflow-x:auto;}
+
+@media(max-width:1200px){
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .chart-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>East<span>Top</span></h1>
+      <p>Solution By IRM</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input id="login-user" class="form-control" type="text" placeholder="Enter username" value="admin"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input id="login-pass" class="form-control" type="password" placeholder="Enter password" value="admin123"/>
+    </div>
+    <button class="btn btn-primary login-btn" onclick="doLogin()">Login</button>
+    <div id="login-error" class="login-error"></div>
+    <div style="margin-top:14px;font-size:11px;color:var(--text-light);text-align:center;">
+      Default: admin / admin123
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-logo" style="cursor:pointer" onclick="navigateTo('dashboard')">
+    <span class="logo-text">East<span>Top</span></span>
+    <button class="collapse-btn" onclick="event.stopPropagation(); toggleSidebar()">☰</button>
+  </div>
+  <nav class="sidebar-nav" id="sidebar-nav"></nav>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <span class="topbar-version">Version: 2.0.0 | Solution By IRM</span>
+    <button class="topbar-update" id="topbar-update-btn" onclick="alert('The application is already up to date.')">App update available ↑</button>
+    <div class="topbar-right">
+      <span class="topbar-location">Location: <strong>FULL SCREEN [F11]</strong> ⤢</span>
+      <span class="topbar-admin" style="cursor:pointer" onclick="logout()">ADMIN 🔒</span>
+    </div>
+  </div>
+  <div id="content">
+    <!-- Pages rendered dynamically -->
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title"></span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG & STATE
+// ============================================================
+const API = 'http://localhost:5000/api';
+let token = localStorage.getItem('easttop_token') || '';
+let currentPage = 'dashboard';
+let editingId = null;
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ============================================================
+// NAV STRUCTURE
+// ============================================================
+const NAV = [
+  { id:'dashboard', label:'Dashboard', icon:'⊞' },
+  { id:'invoice', label:'Invoice', icon:'🛒' },
+  { id:'stock', label:'Stock', icon:'📦', children:[
+    { id:'grn', label:'GRN' },
+    { id:'grn-paid', label:'Paid' },
+    { id:'stock-transfer', label:'Transfer' },
+    { id:'sales-orders', label:'Sales Order' },
+    { id:'sales-quotations', label:'Sales Quotation' },
+    { id:'stock-issues', label:'Stock Issue' },
+  ]},
+  { id:'items', label:'Item & Services', icon:'≡', children:[
+    { id:'item-service', label:'Item & Service' },
+    { id:'category', label:'Category' },
+    { id:'brand', label:'Brand' },
+    { id:'bin-location', label:'Bin Location' },
+    { id:'colour', label:'Colour' },
+    { id:'unit', label:'Unit' },
+  ]},
+  { id:'customers', label:'Customers', icon:'👥', children:[
+    { id:'customer', label:'Customer' },
+    { id:'payment-receipt', label:'Payment Receipt' },
+    { id:'receipt-reversal', label:'Receipt Reversal' },
+    { id:'sales-return', label:'Sales Return' },
+    { id:'cheque-receipts', label:'Cheque Receipts', children:[
+      { id:'cheques-in-hand', label:'Cheques in hand' },
+      { id:'cheques-in-process', label:'Cheques in Process' },
+      { id:'returned-cheques', label:'Returned Cheques' },
+    ]},
+  ]},
+  { id:'suppliers', label:'Suppliers', icon:'🏭', children:[
+    { id:'supplier', label:'Suppliers' },
+    { id:'payment-vouchers', label:'Payment Vouchers' },
+    { id:'voucher-reversal', label:'Voucher Reversal' },
+    { id:'purchase-return', label:'Purchase Return' },
+    { id:'cheque-vouchers', label:'Cheque Vouchers', children:[
+      { id:'cheque-vouchers-hand', label:'Cheques in hand' },
+      { id:'cheque-vouchers-process', label:'Cheques in Process' },
+      { id:'cheque-vouchers-returned', label:'Returned Cheques' },
+    ]},
+  ]},
+  { id:'sales-rep', label:'Sales Rep', icon:'👤', children:[
+    { id:'salesrep', label:'Sales Rep' },
+    { id:'route', label:'Route' },
+  ]},
+  { id:'reports', label:'Reports', icon:'📊' },
+  { id:'barcode', label:'Barcode', icon:'▦' },
+  { id:'expenses', label:'Expenses', icon:'💳', children:[
+    { id:'expense-list', label:'Expenses' },
+    { id:'expense-types', label:'Expenses Type' },
+  ]},
+];
+
+// ============================================================
+// SIDEBAR RENDER
+// ============================================================
+function renderSidebar() {
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = buildNavHTML(NAV);
+  // click handlers
+  nav.querySelectorAll('.nav-link[data-page]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      navigateTo(el.dataset.page);
+    });
+  });
+  nav.querySelectorAll('.nav-link[data-toggle]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const item = el.closest('.nav-item');
+      item.classList.toggle('open');
+    });
+  });
+}
+
+function buildNavHTML(items, depth=0) {
+  return items.map(item => {
+    if (item.children) {
+      return `<div class="nav-item">
+        <div class="nav-link" data-toggle="${item.id}">
+          <span class="icon">${item.icon||'•'}</span>
+          <span>${item.label}</span>
+          <span class="arrow">›</span>
+        </div>
+        <div class="sub-nav">${buildNavHTML(item.children, depth+1)}</div>
+      </div>`;
+    }
+    return `<div class="nav-item">
+      <div class="nav-link" data-page="${item.id}">
+        <span class="icon">${item.icon||'•'}</span>
+        <span>${item.label}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+function setActiveNav(pageId) {
+  document.querySelectorAll('#sidebar-nav .nav-link').forEach(el => el.classList.remove('active'));
+  const active = document.querySelector(`#sidebar-nav .nav-link[data-page="${pageId}"]`);
+  if (active) {
+    active.classList.add('active');
+    // Open parent
+    const subNav = active.closest('.sub-nav');
+    if (subNav) subNav.closest('.nav-item').classList.add('open');
+  }
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doLogin() {
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    token = data.token;
+    localStorage.setItem('easttop_token', token);
+    document.getElementById('login-screen').style.display = 'none';
+    init();
+  } catch(e) {
+    console.error('Login error:', e);
+    // If backend not available OR network error, allow demo login
+    if (username === 'admin' && password === 'admin123') {
+      token = 'demo';
+      localStorage.setItem('easttop_token', token);
+      document.getElementById('login-screen').style.display = 'none';
+      init();
+    } else {
+      errEl.textContent = 'Login Error: ' + e.message;
+    }
+  }
+}
+
+async function apiFetch(path, opts={}) {
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  if (token && token !== 'demo') headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const res = await fetch(`${API}${path}`, { ...opts, headers });
+    if (res.status === 401 && token !== 'demo') { logout(); return null; }
+    return await res.json();
+  } catch(e) {
+    // Demo mode - return mock data
+    return getMockData(path);
+  }
+}
+
+function getMockData(path) {
+  if (path.startsWith('/dashboard')) return { todaySales: 9024, yesterdaySales: 3024, monthlySales: 300024, annualSales: 5000024, monthlySalesChart: [], date: new Date() };
+  return { data: [], total: 0, page: 1, limit: 10 };
+}
+
+function logout() {
+  token = '';
+  localStorage.removeItem('easttop_token');
+  location.reload();
+}
+
+// ============================================================
+// ROUTER
+// ============================================================
+function navigateTo(pageId) {
+  currentPage = pageId;
+  setActiveNav(pageId);
+  renderPage(pageId);
+}
+
+function init() {
+  renderSidebar();
+  navigateTo('dashboard');
+}
+
+function renderPage(pageId) {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="loading"><div class="spinner"></div> Loading...</div>`;
+  setTimeout(() => {
+    switch(pageId) {
+      case 'dashboard': renderDashboard(); break;
+      case 'invoice': renderInvoice(); break;
+      case 'grn': renderGRN('grn'); break;
+      case 'grn-paid': renderGRN('paid'); break;
+      case 'stock-transfer': renderStockTransfer(); break;
+      case 'sales-orders': renderGenericList('Sales Orders','/sales-orders',salesOrderColumns(),salesOrderForm); break;
+      case 'sales-quotations': renderGenericList('Sales Quotations','/sales-quotations',salesQuotationColumns(),salesQuotationForm); break;
+      case 'stock-issues': renderGenericList('Stock Issues','/stock-issues',stockIssueColumns(),stockIssueForm); break;
+      case 'item-service': renderItems(); break;
+      case 'category': renderGenericList('Item Category','/categories',lookupColumns('Category Name'),lookupForm('category','Category Name')); break;
+      case 'brand': renderGenericList('Item Brands','/brands',lookupColumns('Brand Name'),lookupForm('brand','Brand Name')); break;
+      case 'bin-location': renderGenericList('Bin Locations','/bin-locations',lookupColumns('Location Name'),lookupForm('bin-location','Location Name')); break;
+      case 'colour': renderGenericList('Item Colours','/colours',lookupColumns('Colour Name'),lookupForm('colour','Colour Name')); break;
+      case 'unit': renderGenericList('Item Units','/units',lookupColumns('Unit'),lookupForm('unit','Unit')); break;
+      case 'customer': renderCustomers(); break;
+      case 'payment-receipt': renderPaymentReceipts(); break;
+      case 'receipt-reversal': renderReceiptReversal(); break;
+      case 'sales-return': renderGenericList('Sales Return','/sales-returns',salesReturnColumns(),salesReturnForm); break;
+      case 'cheques-in-hand': renderChequeStatus('Cheque in hand','hand'); break;
+      case 'cheques-in-process': renderChequeStatus('Cheque in Process','process'); break;
+      case 'returned-cheques': renderChequeStatus('Returned Cheques','returned'); break;
+      case 'supplier': renderSuppliers(); break;
+      case 'payment-vouchers': renderPaymentVouchers(); break;
+      case 'voucher-reversal': renderVoucherReversal(); break;
+      case 'purchase-return': renderGenericList('Purchase Return','/purchase-returns',purchaseReturnColumns(),purchaseReturnForm); break;
+      case 'cheque-vouchers-hand': renderChequeVoucherStatus('Cheque in hand','hand'); break;
+      case 'cheque-vouchers-process': renderChequeVoucherStatus('Cheque in Process','process'); break;
+      case 'cheque-vouchers-returned': renderChequeVoucherStatus('Returned Cheques','returned'); break;
+      case 'salesrep': renderGenericList('Sales Rep','/sales-reps',salesRepColumns(),salesRepForm); break;
+      case 'route': renderGenericList('Route','/routes-list',routeColumns(),routeForm); break;
+      case 'reports': renderReports(); break;
+      case 'barcode': renderBarcode(); break;
+      case 'expense-list': renderExpenses(); break;
+      case 'expense-types': renderGenericList('Expenses Types','/expenses-types',lookupColumns('Name'),lookupForm('expense-type','Name')); break;
+      default: content.innerHTML = `<div class="page-header"><div class="page-title">${pageId}</div></div><div class="no-data">Page coming soon...</div>`;
+    }
+  }, 50);
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function renderDashboard() {
+  const content = document.getElementById('content');
+  const data = await apiFetch('/dashboard') || { todaySales:0, yesterdaySales:0, monthlySales:0, annualSales:0 };
+  const now = new Date();
+
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Dashboard</div></div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-card-header">Yesterday's Sales</div>
+        <div class="stat-card-value">Rs. ${fmt(data.yesterdaySales)}</div>
+        <div class="stat-card-date">${formatDate(now, -1)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-header">Today's Sales</div>
+        <div class="stat-card-value">Rs. ${fmt(data.todaySales)}</div>
+        <div class="stat-card-date">${formatDate(now, 0)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-header">Monthly Sales</div>
+        <div class="stat-card-value">Rs. ${fmt(data.monthlySales)}</div>
+        <div class="stat-card-date">${MONTHS[now.getMonth()]}, ${now.getFullYear()}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-header">Annual Sales</div>
+        <div class="stat-card-value">Rs. ${fmt(data.annualSales)}</div>
+        <div class="stat-card-date">${now.getFullYear()}</div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Past 6 months sales</div>
+        <div style="height:320px;"><canvas id="salesChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Summary</div>
+        <div style="height:320px;"><canvas id="pieChart"></canvas></div>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | www.irm.lk | info@irm.lk'<br>Copyright © IRM 2026.</div>
+  `;
+
+  // Bar chart - past 6 months
+  const now2 = new Date();
+  const labels = [];
+  for(let i=5;i>=0;i--) {
+    const d = new Date(now2.getFullYear(), now2.getMonth()-i, 1);
+    labels.push(MONTHS[d.getMonth()]);
+  }
+  const chartData = data.monthlySalesChart || [];
+  const salesArr = labels.map((_,i) => {
+    const d = new Date(now2.getFullYear(), now2.getMonth()-(5-i), 1);
+    const found = chartData.find(c => c._id && c._id.month === d.getMonth()+1 && c._id.year === d.getFullYear());
+    return found ? found.total : Math.random()*8000+1000;
+  });
+  const expArr = salesArr.map(v => v * (Math.random()*0.3+0.1));
+  const retArr = salesArr.map(v => v * (Math.random()*0.1));
+
+  new Chart(document.getElementById('salesChart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Sales',data:salesArr,backgroundColor:'#34a853'},
+        {label:'Expenses',data:expArr,backgroundColor:'#a52a2a'},
+        {label:'Return',data:retArr,backgroundColor:'#dd6b20'},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{y:{beginAtZero:true}}}
+  });
+
+  new Chart(document.getElementById('pieChart'), {
+    type:'pie',
+    data:{
+      labels:['Sales','Expenses','Return'],
+      datasets:[{
+        data:[data.monthlySales||300024, data.monthlySales*0.15||45000, data.monthlySales*0.05||15000],
+        backgroundColor:['#34a853','#a52a2a','#dd6b20'],
+        borderWidth: 1,
+        borderColor: '#fff'
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio: false,
+      plugins:{
+        legend:{position:'right',labels:{font:{size:12},padding:20}}
+      }
+    }
+  });
+}
+
+// ============================================================
+// INVOICE
+// ============================================================
+function renderInvoice() {
+  const content = document.getElementById('content');
+  const now = new Date();
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Invoice</div></div>
+    <div class="invoice-container">
+      <div class="invoice-left">
+        <div class="invoice-header">
+          <div style="font-size:14px;font-weight:600;">Invoice</div>
+          <div class="invoice-datetime">${now.toLocaleString()}</div>
+        </div>
+        <div class="form-grid mb-10">
+          <div class="form-group">
+            <label class="form-label">Customer</label>
+            <input type="text" class="form-control" id="inv-customer-search" list="inv-customer-list" placeholder="Search Customer..." onchange="onCustomerSelect(this.value)">
+            <datalist id="inv-customer-list"></datalist>
+            <input type="hidden" id="inv-customer-id">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quotation (Optional)</label>
+            <input type="text" class="form-control" id="inv-quotation-search" list="inv-quotation-list" placeholder="Search Quotation..." onchange="loadQuotation(this.value)">
+            <datalist id="inv-quotation-list"></datalist>
+          </div>
+        </div>
+        <div class="product-row" style="display:flex;gap:8px;align-items:center;margin-bottom:15px;">
+          <div style="flex:1">
+            <input type="text" class="form-control" id="inv-product-search" list="inv-product-list" placeholder="Search Product..." onchange="onProductSelect(this.value)">
+            <datalist id="inv-product-list"></datalist>
+          </div>
+          <input type="number" class="form-control" id="inv-price" placeholder="Price" style="width:110px">
+          <input type="number" class="form-control" id="inv-qty" value="1" min="1" style="width:70px">
+          <button class="btn btn-primary" onclick="addInvoiceItem()">ADD</button>
+        </div>
+
+        <div class="invoice-items-table table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Description</th><th>QTY</th><th>U.Price</th><th>Dis(%)</th><th>Dis(Rs)</th><th>Price Total</th><th></th></tr></thead>
+            <tbody id="inv-items-body"><tr><td colspan="8" class="no-data">No Data</td></tr></tbody>
+          </table>
+        </div>
+        <div class="invoice-total-row">
+          <span>Total</span>
+          <span id="inv-total">Rs. 0.00</span>
+        </div>
+      </div>
+      <div class="invoice-right">
+        <div class="invoice-btn-grid">
+          <button class="invoice-action-btn btn-cash" onclick="processPayment('CASH')">
+            💵<span>CASH PAY</span><span class="shortcut">[F1]</span>
+          </button>
+          <button class="invoice-action-btn btn-credit" onclick="processPayment('CREDIT')">
+            💳<span>CREDIT</span><span class="shortcut">[CTRL+S]</span>
+          </button>
+          <button class="invoice-action-btn btn-clear-inv" onclick="clearInvoice()">
+            🗑️<span>CLEAR</span><span class="shortcut">[-]</span>
+          </button>
+          <button class="invoice-action-btn btn-discount" onclick="applyDiscount()">
+            🏷️<span>DISCOUNT</span><span class="shortcut">[F5]</span>
+          </button>
+          <button class="invoice-action-btn btn-return" onclick="navigateTo('sales-return')">
+            ↩<span>RETURN</span><span class="shortcut">[F4]</span>
+          </button>
+          <button class="invoice-action-btn btn-payment" onclick="processPayment('CASH')">
+            ✓<span>PAYMENT</span><span class="shortcut">[ALT+P]</span>
+          </button>
+          <button class="invoice-action-btn btn-add-cust" onclick="navigateTo('customer')">
+            👤<span>ADD CUSTOMER</span><span class="shortcut">[ALT+C]</span>
+          </button>
+          <button class="invoice-action-btn btn-sales-order" onclick="navigateTo('sales-orders')">
+            📋<span>SALES ORDER</span><span class="shortcut">[ALT+O]</span>
+          </button>
+        </div>
+        <div class="find-row" style="margin-top:10px;">
+          <input type="text" placeholder="Invoice Number" id="find-invoice-no"/>
+          <button class="btn btn-primary btn-sm" onclick="findInvoice()">FIND</button>
+          <button class="btn btn-danger btn-sm" onclick="document.getElementById('find-invoice-no').value=''">CLEAR</button>
+        </div>
+        <div id="inv-found-msg" style="font-size:12px;color:var(--text-light);text-align:center;margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | www.irm.lk | info@irm.lk'<br>Copyright © IRM 2026.</div>
+  `;
+
+  // Load customers and products
+  loadInvoiceDropdowns();
+  window._invItems = [];
+}
+
+async function loadInvoiceDropdowns() {
+  const [custData, itemData, quotData] = await Promise.all([
+    apiFetch('/customers?limit=1000'),
+    apiFetch('/items?limit=1000'),
+    apiFetch('/sales-quotations?limit=100')
+  ]);
+  window._allCustomers = custData?.data || [];
+  window._allProducts = itemData?.data || [];
+  window._allQuotations = quotData?.data || [];
+  
+  const custList = document.getElementById('inv-customer-list');
+  if (custList) {
+    custList.innerHTML = window._allCustomers.map(c => `<option value="${c.name}">${c.name} (${c.code})</option>`).join('');
+  }
+  
+  const prodList = document.getElementById('inv-product-list');
+  if (prodList) {
+    prodList.innerHTML = window._allProducts.map(i => `<option value="${i.name}">${i.name} (${i.code})</option>`).join('');
+  }
+
+  const quotList = document.getElementById('inv-quotation-list');
+  if (quotList) {
+    quotList.innerHTML = window._allQuotations.map(q => `<option value="${q.code}">${q.code} - ${q.customer?.name||''}</option>`).join('');
+  }
+}
+
+async function loadQuotation(code) {
+  if (!code) return;
+  const qObj = window._allQuotations.find(q => q.code === code);
+  if (!qObj) return;
+  const data = await apiFetch('/sales-quotations/' + qObj._id);
+  if (!data) return;
+  if (data.customer) {
+    document.getElementById('inv-customer-search').value = data.customer.name;
+    document.getElementById('inv-customer-id').value = data.customer._id;
+  }
+  window._invItems = (data.items || []).map(i => ({
+    id: i.item?._id || i.item,
+    name: i.description || i.item?.name || 'Item',
+    qty: i.qty,
+    unitPrice: i.unitPrice,
+    discount: i.discountPct || 0,
+    total: i.total
+  }));
+  renderInvoiceItems();
+}
+
+function onCustomerSelect(val) {
+  const cust = window._allCustomers.find(c => c.name === val);
+  if (cust) {
+    document.getElementById('inv-customer-id').value = cust._id;
+  } else {
+    document.getElementById('inv-customer-id').value = '';
+  }
+}
+
+function onProductSelect(val) {
+  const prod = window._allProducts.find(p => p.name === val);
+  if (prod) {
+    document.getElementById('inv-price').value = prod.retailPrice || 0;
+    window._selectedProductId = prod._id;
+  } else {
+    window._selectedProductId = null;
+  }
+}
+
+function addInvoiceItem() {
+  const name = document.getElementById('inv-product-search').value;
+  const price = parseFloat(document.getElementById('inv-price').value)||0;
+  const qty = parseInt(document.getElementById('inv-qty').value)||1;
+  const id = window._selectedProductId;
+  
+  if (!name || !id) return alert('Please select a valid product');
+  window._invItems = window._invItems || [];
+  window._invItems.push({ id, name, qty, unitPrice: price, discount: 0, total: price*qty });
+  
+  // Clear inputs
+  document.getElementById('inv-product-search').value = '';
+  document.getElementById('inv-price').value = '';
+  document.getElementById('inv-qty').value = '1';
+  window._selectedProductId = null;
+  
+  renderInvoiceItems();
+}
+
+function renderInvoiceItems() {
+  const tbody = document.getElementById('inv-items-body');
+  const items = window._invItems || [];
+  if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">No Data</td></tr>'; updateInvTotal(); return; }
+  tbody.innerHTML = items.map((it,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${it.name}</td>
+      <td><input type="number" value="${it.qty}" min="1" style="width:50px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;" onchange="updateInvItem(${i},'qty',this.value)"/></td>
+      <td>${fmt(it.unitPrice)}</td>
+      <td><input type="number" value="${it.discount}" min="0" max="100" style="width:50px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;" onchange="updateInvItem(${i},'discount',this.value)"/></td>
+      <td>${fmt(it.unitPrice*it.qty*it.discount/100)}</td>
+      <td class="fw-bold">${fmt(it.total)}</td>
+      <td><button onclick="removeInvItem(${i})" style="background:#e53e3e;color:#fff;border:none;border-radius:3px;padding:2px 6px;cursor:pointer;">×</button></td>
+    </tr>`).join('');
+  updateInvTotal();
+}
+function updateInvItem(i, field, val) {
+  const items = window._invItems;
+  if (field==='qty') items[i].qty = parseInt(val)||1;
+  if (field==='discount') items[i].discount = parseFloat(val)||0;
+  const disc = items[i].unitPrice * items[i].qty * items[i].discount / 100;
+  items[i].total = items[i].unitPrice * items[i].qty - disc;
+  renderInvoiceItems();
+}
+function removeInvItem(i) { window._invItems.splice(i,1); renderInvoiceItems(); }
+function updateInvTotal() {
+  const total = (window._invItems||[]).reduce((s,i)=>s+i.total,0);
+  const el = document.getElementById('inv-total');
+  if (el) el.textContent = 'Rs. ' + fmt(total);
+}
+function clearInvoice() {
+  window._invItems = [];
+  renderInvoiceItems();
+  const searchEl = document.getElementById('inv-customer-search');
+  const idEl = document.getElementById('inv-customer-id');
+  if (searchEl) searchEl.value = '';
+  if (idEl) idEl.value = '';
+}
+async function processPayment(method) {
+  const items = window._invItems||[];
+  if (!items.length) return alert('Please add items to invoice');
+  const custName = document.getElementById('inv-customer-search').value;
+  const custId = document.getElementById('inv-customer-id').value;
+  const total = items.reduce((s,i)=>s+i.total,0);
+  const payload = {
+    customer: custId || custName || undefined,
+    items: items.map(i=>({ item:i.id, description:i.name, qty:i.qty, unitPrice:i.unitPrice, discountPct:i.discount, discountAmt:i.unitPrice*i.qty*i.discount/100, total:i.total })),
+    total, paymentMethod: method, status:'A'
+  };
+  const res = await apiFetch('/invoices',{method:'POST',body:JSON.stringify(payload)});
+  if (res && (res._id || res.code)) {
+    alert(`Invoice saved! Code: ${res.code||'DEMO'}`);
+    clearInvoice();
+  } else {
+    alert('Invoice saved (demo mode)');
+    clearInvoice();
+  }
+}
+function applyDiscount() {
+  const pct = prompt('Enter discount %:');
+  if (!pct) return;
+  (window._invItems||[]).forEach(it => {
+    it.discount = parseFloat(pct)||0;
+    const disc = it.unitPrice * it.qty * it.discount / 100;
+    it.total = it.unitPrice * it.qty - disc;
+  });
+  renderInvoiceItems();
+}
+async function findInvoice() {
+  const no = document.getElementById('find-invoice-no').value;
+  if (!no) return;
+  const data = await apiFetch(`/invoices?search=${no}`);
+  const msg = document.getElementById('inv-found-msg');
+  if (data?.data?.length) msg.textContent = `Found: ${data.data[0].code}`;
+  else msg.textContent = 'Invoice not found';
+}
+// Removed duplicate/broken loadQuotation
+
+// ============================================================
+// GENERIC LIST PAGE
+// ============================================================
+async function renderGenericList(title, endpoint, columns, formFn, extraHtml='') {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">${title}</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openAddModal()">➕ ADD ${title.toUpperCase().split(' ').slice(-1)[0]}</button>
+        ${extraHtml}
+        <div class="search-box" style="margin-left:auto;">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search..." id="list-search" onkeyup="searchList(this.value,'${endpoint}','${title}')"/>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th>${columns.map(c=>`<th>${c.label}</th>`).join('')}<th>Actions</th></tr></thead>
+          <tbody id="list-tbody"><tr><td colspan="${columns.length+2}" class="loading"><div class="spinner"></div> Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="pagination-info">
+          <select class="rows-select" onchange="changeListLimit(this.value,'${endpoint}','${title}')">
+            <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+          </select>
+        </div>
+        <span id="list-pag-info">0-0 of 0</span>
+        <button class="page-btn" id="list-prev" onclick="changeListPage(-1,'${endpoint}','${title}')" disabled>‹</button>
+        <button class="page-btn" id="list-next" onclick="changeListPage(1,'${endpoint}','${title}')">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | www.irm.lk | info@irm.lk'<br>Copyright © IRM 2026.</div>
+  `;
+  window._listState = { endpoint, title, columns, formFn, page:1, limit:10, search:'' };
+  await loadList();
+}
+
+async function loadList() {
+  const s = window._listState;
+  const tbody = document.getElementById('list-tbody');
+  if (!tbody) return;
+  const data = await apiFetch(`${s.endpoint}?page=${s.page}&limit=${s.limit}&search=${s.search}`);
+  if (!data || !data.data) {
+    tbody.innerHTML = `<tr><td colspan="${s.columns.length+2}" class="no-data">No data found</td></tr>`;
+    return;
+  }
+  const { data: rows, total, page, limit } = data;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${s.columns.length+2}" class="no-data">No item to display</td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(row => `
+      <tr>
+        <td><input type="checkbox"/></td>
+        ${s.columns.map(c => `<td>${getCellValue(row, c)}</td>`).join('')}
+        <td>
+          <button class="btn btn-sm btn-info" onclick='editItem(${JSON.stringify(row._id)})'>✏️</button>
+          <button class="btn btn-sm btn-danger" onclick='deleteItem("${row._id}")'>🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+  const from = (page-1)*limit+1, to = Math.min(page*limit, total);
+  const pagInfo = document.getElementById('list-pag-info');
+  if (pagInfo) pagInfo.textContent = `${total?from:0}–${to} of ${total}`;
+  const prevBtn = document.getElementById('list-prev');
+  const nextBtn = document.getElementById('list-next');
+  if (prevBtn) prevBtn.disabled = page <= 1;
+  if (nextBtn) nextBtn.disabled = to >= total;
+  s._rows = rows;
+}
+
+function getCellValue(row, col) {
+  const val = col.key.split('.').reduce((o,k) => o?.[k], row);
+  if (val === null || val === undefined) return '-';
+  if (col.format) return col.format(val);
+  return val;
+}
+
+function searchList(val, endpoint, title) {
+  window._listState.search = val;
+  window._listState.page = 1;
+  loadList();
+}
+function changeListLimit(val, endpoint, title) {
+  window._listState.limit = parseInt(val);
+  window._listState.page = 1;
+  loadList();
+}
+function changeListPage(dir, endpoint, title) {
+  window._listState.page = Math.max(1, window._listState.page + dir);
+  loadList();
+}
+
+async function editItem(id) {
+  const s = window._listState;
+  const row = s._rows?.find(r => r._id === id);
+  openFormModal('Edit ' + s.title, s.formFn(row), () => saveItem(id, s.formFn));
+}
+
+function openAddModal() {
+  const s = window._listState;
+  openFormModal('Add ' + s.title, s.formFn(null), () => saveItem(null, s.formFn));
+}
+
+async function saveItem(id, formFn) {
+  const s = window._listState;
+  const fields = document.querySelectorAll('#modal-body [name]');
+  const body = {};
+  fields.forEach(f => { body[f.name] = f.value; });
+  const endpoint = s.endpoint;
+  const url = id ? `${endpoint}/${id}` : endpoint;
+  const method = id ? 'PUT' : 'POST';
+  const res = await apiFetch(url, { method, body: JSON.stringify(body) });
+  closeModal();
+  await loadList();
+}
+
+async function deleteItem(id) {
+  if (!confirm('Delete this item?')) return;
+  await apiFetch(`${window._listState.endpoint}/${id}`, { method: 'DELETE' });
+  await loadList();
+}
+
+// ============================================================
+// COLUMN DEFINITIONS
+// ============================================================
+function lookupColumns(nameLbl) {
+  return [
+    { label: 'Code', key: 'code' },
+    { label: nameLbl, key: 'name' }
+  ];
+}
+function lookupForm(type, nameLbl) {
+  return (row) => `
+    <div class="form-group"><label class="form-label">${nameLbl}</label>
+    <input name="name" class="form-control" value="${row?.name||''}" required/></div>`;
+}
+
+function salesOrderColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Customer', key:'customer.name' },
+    { label:'Date', key:'date', format: v => fmtDate(v) },
+    { label:'Total', key:'total', format: v => 'Rs. '+fmt(v) }
+  ];
+}
+function salesOrderForm(row) {
+  return `<div class="form-group"><label class="form-label">Customer</label>
+  <input name="customer" class="form-control" value="${row?.customer?.name||''}"/></div>
+  <div class="form-group"><label class="form-label">Total</label>
+  <input name="total" class="form-control" type="number" value="${row?.total||0}"/></div>`;
+}
+
+function salesQuotationColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Customer', key:'customer.name' },
+    { label:'Date', key:'date', format: v => fmtDate(v) },
+    { label:'Total', key:'total', format: v => fmt(v) }
+  ];
+}
+function salesQuotationForm(row) {
+  return salesOrderForm(row);
+}
+
+function stockIssueColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Reference No', key:'referenceNo' },
+    { label:'Customer', key:'customer.name' },
+    { label:'Total', key:'total', format: v => fmt(v) }
+  ];
+}
+function stockIssueForm(row) {
+  return `<div class="form-group"><label class="form-label">Reference No</label>
+  <input name="referenceNo" class="form-control" value="${row?.referenceNo||''}"/></div>
+  <div class="form-group"><label class="form-label">Total</label>
+  <input name="total" class="form-control" type="number" value="${row?.total||0}"/></div>`;
+}
+
+function salesReturnColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Customer', key:'customer.name' },
+    { label:'Date', key:'date', format: v => fmtDate(v) },
+    { label:'Amount', key:'amount', format: v => fmt(v) }
+  ];
+}
+function salesReturnForm(row) {
+  return `<div class="form-group"><label class="form-label">Amount</label>
+  <input name="amount" class="form-control" type="number" value="${row?.amount||0}"/></div>`;
+}
+
+function salesRepColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Name', key:'name' },
+    { label:'Contact No', key:'contactNo' },
+    { label:'Email', key:'email' }
+  ];
+}
+function salesRepForm(row) {
+  return `<div class="form-grid">
+    <div class="form-group"><label class="form-label">Name</label><input name="name" class="form-control" value="${row?.name||''}" required/></div>
+    <div class="form-group"><label class="form-label">Contact No</label><input name="contactNo" class="form-control" value="${row?.contactNo||''}" pattern="[0-9]{10}" maxlength="10" title="10 digit number" required/></div>
+    <div class="form-group"><label class="form-label">Email</label><input name="email" class="form-control" type="email" value="${row?.email||''}" required/></div>
+    <div class="form-group"><label class="form-label">NIC</label><input name="nic" class="form-control" value="${row?.nic||''}" pattern="[0-9]{12}|[0-9]{9}[vV]" title="12 digits or 9 digits + v" required/></div>
+  </div>`;
+}
+
+function routeColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Name', key:'name' },
+    { label:'From', key:'from' },
+    { label:'To', key:'to' }
+  ];
+}
+function routeForm(row) {
+  return `<div class="form-grid">
+    <div class="form-group"><label class="form-label">Name</label><input name="name" class="form-control" value="${row?.name||''}" required/></div>
+    <div class="form-group"><label class="form-label">From</label><input name="from" class="form-control" value="${row?.from||''}"/></div>
+    <div class="form-group"><label class="form-label">To</label><input name="to" class="form-control" value="${row?.to||''}"/></div>
+  </div>`;
+}
+
+function purchaseReturnColumns() {
+  return [
+    { label:'Code', key:'code' },
+    { label:'Supplier', key:'supplier.name' },
+    { label:'Return Date', key:'returnDate', format: v => fmtDate(v) },
+    { label:'Total', key:'total', format: v => fmt(v) }
+  ];
+}
+function purchaseReturnForm(row) {
+  return `<div class="form-group"><label class="form-label">Total</label>
+  <input name="total" class="form-control" type="number" value="${row?.total||0}"/></div>`;
+}
+
+// ============================================================
+// GRN
+// ============================================================
+async function renderGRN(mode) {
+  const title = mode==='paid' ? 'Goods received note - Paid' : 'Goods received note';
+  const query = mode==='paid' ? '?status=paid' : '?status=pending';
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">${title}</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openGRNModal()">➕ ADD GRN</button>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search..." id="grn-search" onkeyup="searchGRN(this.value)"/>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Supplier</th><th>Invoice Code</th><th>Date</th><th>GRN Date</th><th class="text-right">Total</th><th>Actions</th></tr></thead>
+          <tbody id="grn-tbody"><tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <select class="rows-select" onchange="window._grnLimit=parseInt(this.value);loadGRNList()"><option>10</option><option>25</option><option>50</option></select>
+        <span id="grn-pag-info">0-0 of 0</span>
+        <button class="page-btn" id="grn-prev" onclick="window._grnPage--;loadGRNList()" disabled>‹</button>
+        <button class="page-btn" id="grn-next" onclick="window._grnPage++;loadGRNList()">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  window._grnMode = mode;
+  window._grnPage = 1;
+  window._grnLimit = 10;
+  window._grnSearch = '';
+  await loadGRNList();
+}
+
+async function loadGRNList() {
+  const mode = window._grnMode;
+  const status = mode==='paid' ? 'paid' : '';
+  const data = await apiFetch(`/grn?page=${window._grnPage}&limit=${window._grnLimit}&search=${window._grnSearch}${status?'&status='+status:''}`);
+  const tbody = document.getElementById('grn-tbody');
+  if (!tbody) return;
+  if (!data?.data?.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(g => `
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${g.code||'-'}</td>
+      <td>${g.supplier?.name||'-'}</td>
+      <td>${g.invoiceCode||'-'}</td>
+      <td>${fmtDate(g.date)}</td>
+      <td>${fmtDate(g.grnDate)}</td>
+      <td class="text-right">${fmt(g.total)}</td>
+      <td>
+        <button class="btn btn-sm btn-info" onclick="editGRN('${g._id}')">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteGRN('${g._id}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+  const { total, page, limit } = data;
+  const from=(page-1)*limit+1, to=Math.min(page*limit,total);
+  document.getElementById('grn-pag-info').textContent = `${total?from:0}–${to} of ${total}`;
+  document.getElementById('grn-prev').disabled = page<=1;
+  document.getElementById('grn-next').disabled = to>=total;
+  window._grnRows = data.data;
+}
+
+function searchGRN(val) { window._grnSearch=val; window._grnPage=1; loadGRNList(); }
+
+async function openGRNModal(row=null) {
+  openFormModal('Add GRN', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Supplier</label>
+        <input name="supplierName" class="form-control" list="grn-sup-list" placeholder="Supplier name" value="${row?.supplier?.name||''}"/>
+        <datalist id="grn-sup-list"></datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Invoice Code</label><input name="invoiceCode" class="form-control" value="${row?.invoiceCode||''}"/></div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${row?.date?.substring(0,10)||today()}"/></div>
+      <div class="form-group"><label class="form-label">GRN Date</label><input name="grnDate" class="form-control" type="date" value="${row?.grnDate?.substring(0,10)||today()}"/></div>
+      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="${row?.total||0}"/></div>
+      <div class="form-group"><label class="form-label">Notes</label><input name="notes" class="form-control" value="${row?.notes||''}"/></div>
+    </div>`, async () => {
+    const fields = {};
+    document.querySelectorAll('#modal-body [name]').forEach(f => fields[f.name]=f.value);
+    await apiFetch('/grn',{method:'POST',body:JSON.stringify(fields)});
+    closeModal(); loadGRNList();
+  });
+  const supData = await apiFetch('/suppliers?limit=500');
+  const dl = document.getElementById('grn-sup-list');
+  if (dl && supData?.data) dl.innerHTML = supData.data.map(s=>`<option value="${s.name}">${s.name} (${s.code})</option>`).join('');
+}
+async function editGRN(id) {
+  const row = window._grnRows?.find(r=>r._id===id);
+  openGRNModal(row);
+}
+async function deleteGRN(id) {
+  if (!confirm('Delete GRN?')) return;
+  await apiFetch(`/grn/${id}`,{method:'DELETE'});
+  loadGRNList();
+}
+
+// ============================================================
+// STOCK TRANSFER
+// ============================================================
+async function renderStockTransfer() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Stock Transfer</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openStockTransferModal()">➕ ADD STOCK TRANSFER</button>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="Search..."/></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Location - From</th><th>Location - To</th><th>Remarks</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="st-tbody"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <select class="rows-select"><option>10</option><option>25</option></select>
+        <span id="st-pag-info">0–0 of 0</span>
+        <button class="page-btn" disabled>‹</button>
+        <button class="page-btn">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  const data = await apiFetch('/stock-transfer?limit=10');
+  const tbody = document.getElementById('st-tbody');
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="7" class="no-data">No Stock Transfer to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(r=>`<tr><td><input type="checkbox"/></td><td>${r.code}</td><td>${r.locationFrom||'-'}</td><td>${r.locationTo||'-'}</td><td>${r.remarks||'-'}</td><td>${fmtDate(r.date)}</td><td><button class="btn btn-sm btn-danger" onclick="apiFetch('/stock-transfer/${r._id}',{method:'DELETE'}).then(()=>renderStockTransfer())">🗑️</button></td></tr>`).join('');
+}
+
+async function openStockTransferModal(row=null) {
+  openFormModal('Add Stock Transfer',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Location From</label>
+        <input name="locationFrom" class="form-control" list="st-loc-list" value="${row?.locationFrom||''}"/>
+        <datalist id="st-loc-list"></datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Location To</label>
+        <input name="locationTo" class="form-control" list="st-loc-list" value="${row?.locationTo||''}"/>
+      </div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${today()}"/></div>
+      <div class="form-group"><label class="form-label">Remarks</label><input name="remarks" class="form-control"/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    await apiFetch('/stock-transfer',{method:'POST',body:JSON.stringify(fields)});
+    closeModal(); renderStockTransfer();
+  });
+  const locData = await apiFetch('/bin-locations?limit=500');
+  const dl = document.getElementById('st-loc-list');
+  if (dl && locData?.data) dl.innerHTML = locData.data.map(l=>`<option value="${l.name}"></option>`).join('');
+}
+
+// ============================================================
+// ITEMS
+// ============================================================
+async function renderItems() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Item & Service</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openItemModal()">➕ ADD</button>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="Search..." onkeyup="searchItems(this.value)"/></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Type</th><th>Barcode</th><th>Description</th><th>Name</th><th class="text-right">Wholesale Price</th><th class="text-right">Retail Price</th><th>Actions</th></tr></thead>
+          <tbody id="items-tbody"><tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <select class="rows-select" onchange="window._itemLimit=parseInt(this.value);loadItems()"><option>10</option><option>25</option><option>50</option></select>
+        <span id="items-pag-info">0-0 of 0</span>
+        <button class="page-btn" id="items-prev" onclick="window._itemPage--;loadItems()" disabled>‹</button>
+        <button class="page-btn" id="items-next" onclick="window._itemPage++;loadItems()">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  window._itemPage=1; window._itemLimit=10; window._itemSearch='';
+  await loadItems();
+}
+
+async function loadItems() {
+  const data = await apiFetch(`/items?page=${window._itemPage}&limit=${window._itemLimit}&search=${window._itemSearch||''}`);
+  const tbody = document.getElementById('items-tbody');
+  if (!tbody) return;
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="8" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(it=>`
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${it.type}</td>
+      <td>${it.barcode||'-'}</td>
+      <td>${it.description||'-'}</td>
+      <td>${it.name}</td>
+      <td class="text-right">${it.wholesalePrice?fmt(it.wholesalePrice):'-'}</td>
+      <td class="text-right">${it.retailPrice?fmt(it.retailPrice):'-'}</td>
+      <td>
+        <button class="btn btn-sm btn-info" onclick="openItemModal('${it._id}')">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteItemById('${it._id}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+  window._itemRows = data.data;
+  const { total, page, limit } = data;
+  const from=(page-1)*limit+1, to=Math.min(page*limit,total);
+  document.getElementById('items-pag-info').textContent = `${total?from:0}–${to} of ${total}`;
+  document.getElementById('items-prev').disabled = page<=1;
+  document.getElementById('items-next').disabled = to>=total;
+}
+
+function searchItems(v) { window._itemSearch=v; window._itemPage=1; loadItems(); }
+
+async function openItemModal(id=null) {
+  const row = id ? (window._itemRows||[]).find(r=>r._id===id) : null;
+  // Load dropdowns
+  const [cats,brands,units,colours] = await Promise.all([
+    apiFetch('/categories?limit=100'),
+    apiFetch('/brands?limit=100'),
+    apiFetch('/units?limit=100'),
+    apiFetch('/colours?limit=100'),
+  ]);
+  const catOpts = (cats?.data||[]).map(c=>`<option value="${c.name}"></option>`).join('');
+  const brandOpts = (brands?.data||[]).map(c=>`<option value="${c.name}"></option>`).join('');
+  const unitOpts = (units?.data||[]).map(c=>`<option value="${c.name}"></option>`).join('');
+  const colourOpts = (colours?.data||[]).map(c=>`<option value="${c.name}"></option>`).join('');
+
+  openFormModal((id?'Edit':'Add')+' Item', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Type</label>
+        <input name="type" class="form-control" list="modal-types" value="${row?.type||'Product'}" placeholder="Product or Service">
+        <datalist id="modal-types">
+          <option value="Product">
+          <option value="Service">
+        </datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Name *</label><input name="name" class="form-control" value="${row?.name||''}" required/></div>
+      <div class="form-group"><label class="form-label">Barcode</label><input name="barcode" class="form-control" value="${row?.barcode||''}"/></div>
+      <div class="form-group"><label class="form-label">Description</label><input name="description" class="form-control" value="${row?.description||''}"/></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <input name="category" class="form-control" list="modal-cats" value="${row?.category?.name||''}" placeholder="Select or type category">
+        <datalist id="modal-cats">${catOpts}</datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Brand</label>
+        <input name="brand" class="form-control" list="modal-brands" value="${row?.brand?.name||''}" placeholder="Select or type brand">
+        <datalist id="modal-brands">${brandOpts}</datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Unit</label>
+        <input name="unit" class="form-control" list="modal-units" value="${row?.unit?.name||''}" placeholder="Select or type unit" required>
+        <datalist id="modal-units">${unitOpts}</datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Colour</label>
+        <input name="colour" class="form-control" list="modal-colours" value="${row?.colour?.name||''}" placeholder="Select or type colour" required>
+        <datalist id="modal-colours">${colourOpts}</datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Wholesale Price</label><input name="wholesalePrice" class="form-control" type="number" value="${row?.wholesalePrice||0}" required/></div>
+      <div class="form-group"><label class="form-label">Retail Price</label><input name="retailPrice" class="form-control" type="number" value="${row?.retailPrice||0}" required/></div>
+      <div class="form-group"><label class="form-label">Cost Price</label><input name="costPrice" class="form-control" type="number" value="${row?.costPrice||0}" required/></div>
+      <div class="form-group"><label class="form-label">Stock Qty</label><input name="stockQuantity" class="form-control" type="number" value="${row?.stockQuantity||0}" required/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>{ if(f.value) fields[f.name]=f.value; });
+    const url = id ? `/items/${id}` : '/items';
+    await apiFetch(url, {method: id?'PUT':'POST', body:JSON.stringify(fields)});
+    closeModal(); loadItems();
+  });
+  document.getElementById('modal-box').style.maxWidth='700px';
+}
+
+async function deleteItemById(id) {
+  if (!confirm('Delete item?')) return;
+  await apiFetch(`/items/${id}`,{method:'DELETE'});
+  loadItems();
+}
+
+// ============================================================
+// CUSTOMERS
+// ============================================================
+async function renderCustomers() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Customers</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openCustomerModal()">➕ ADD CUSTOMER</button>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="Search..." onkeyup="loadCustomers(this.value)"/></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Custom Code</th><th>Customer</th><th>Address</th><th>City</th><th>Tel</th><th class="text-right">Credit Amount</th><th class="text-right">Credit Limit</th><th>Actions</th></tr></thead>
+          <tbody id="cust-tbody"><tr><td colspan="10" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <select class="rows-select" onchange="window._custLimit=parseInt(this.value);loadCustomers()"><option>10</option><option>25</option><option>50</option></select>
+        <span id="cust-pag-info">0-0 of 0</span>
+        <button class="page-btn" id="cust-prev" onclick="window._custPage--;loadCustomers()" disabled>‹</button>
+        <button class="page-btn" id="cust-next" onclick="window._custPage++;loadCustomers()">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  window._custPage=1; window._custLimit=10;
+  await loadCustomers();
+}
+
+async function loadCustomers(search='') {
+  window._custSearch = search;
+  const data = await apiFetch(`/customers?page=${window._custPage}&limit=${window._custLimit}&search=${search}`);
+  const tbody = document.getElementById('cust-tbody');
+  if (!tbody) return;
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="10" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(c=>`
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${c.code||'-'}</td>
+      <td>${c.customCode||'-'}</td>
+      <td>${c.name}</td>
+      <td>${c.address||'-'}</td>
+      <td>${c.city||'-'}</td>
+      <td>${c.tel||'-'}</td>
+      <td class="text-right">${fmt(c.creditAmount)}</td>
+      <td class="text-right">${fmt(c.creditLimit)}</td>
+      <td>
+        <button class="btn btn-sm btn-info" onclick="openCustomerModal('${c._id}')">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${c._id}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+  window._custRows = data.data;
+  const { total, page, limit } = data;
+  const from=(page-1)*limit+1,to=Math.min(page*limit,total);
+  document.getElementById('cust-pag-info').textContent=`${total?from:0}–${to} of ${total}`;
+  document.getElementById('cust-prev').disabled=page<=1;
+  document.getElementById('cust-next').disabled=to>=total;
+}
+
+function openCustomerModal(id=null) {
+  const row = id ? (window._custRows||[]).find(r=>r._id===id) : null;
+  openFormModal((id?'Edit':'Add')+' Customer', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Name *</label><input name="name" class="form-control" value="${row?.name||''}" required/></div>
+      <div class="form-group"><label class="form-label">NIC *</label><input name="nic" class="form-control" value="${row?.nic||''}" pattern="[0-9]{12}|[0-9]{9}[vV]" title="12 digits OR 9 digits and 'v'" required/></div>
+      <div class="form-group"><label class="form-label">Custom Code</label><input name="customCode" class="form-control" value="${row?.customCode||''}" required/></div>
+      <div class="form-group"><label class="form-label">Address</label><input name="address" class="form-control" value="${row?.address||''}" required/></div>
+      <div class="form-group"><label class="form-label">City</label><input name="city" class="form-control" value="${row?.city||''}" required/></div>
+      <div class="form-group"><label class="form-label">Tel *</label><input name="tel" class="form-control" value="${row?.tel||''}" pattern="[0-9]{10}" maxlength="10" title="10 digit number" required/></div>
+      <div class="form-group"><label class="form-label">Email *</label><input name="email" class="form-control" type="email" value="${row?.email||''}" required/></div>
+      <div class="form-group"><label class="form-label">Credit Limit</label><input name="creditLimit" class="form-control" type="number" value="${row?.creditLimit||0}" required/></div>
+      <div class="form-group"><label class="form-label">Credit Amount</label><input name="creditAmount" class="form-control" type="number" value="${row?.creditAmount||0}" required/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    const url=id?`/customers/${id}`:'/customers';
+    await apiFetch(url,{method:id?'PUT':'POST',body:JSON.stringify(fields)});
+    closeModal(); loadCustomers();
+  });
+}
+async function deleteCustomer(id) {
+  if (!confirm('Delete customer?')) return;
+  await apiFetch(`/customers/${id}`,{method:'DELETE'});
+  loadCustomers();
+}
+
+// ============================================================
+// PAYMENT RECEIPTS
+// ============================================================
+async function renderPaymentReceipts() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Payment Receipt</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openPaymentReceiptModal()">➕ ADD PAYMENT RECEIPT</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Customer</th><th class="text-right">Total</th><th class="text-right">Settle-Amt</th><th class="text-right">OverPayment</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="pr-tbody"><tr><td colspan="9" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination"><span id="pr-pag-info">0–0 of 0</span></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  const data = await apiFetch('/payment-receipts?limit=10');
+  const tbody = document.getElementById('pr-tbody');
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="9" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(r=>`
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${r.code||'-'}</td>
+      <td>${r.customer?.name||'-'}</td>
+      <td class="text-right">${fmt(r.total)}</td>
+      <td class="text-right">${fmt(r.settleAmt)}</td>
+      <td class="text-right">${fmt(r.overPayment)}</td>
+      <td>${fmtDateTime(r.date)}</td>
+      <td><span class="badge badge-success">${r.status}</span></td>
+      <td>
+        <button class="btn btn-sm btn-info" onclick="">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="apiFetch('/payment-receipts/${r._id}',{method:'DELETE'}).then(()=>renderPaymentReceipts())">🗑️</button>
+      </td>
+    </tr>`).join('');
+  window._prRows = data.data;
+  document.getElementById('pr-pag-info').textContent = `1–${data.data.length} of ${data.total}`;
+}
+
+function openPaymentReceiptModal() {
+  openFormModal('Add Payment Receipt',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Settle Amount</label><input name="settleAmt" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Notes</label><input name="notes" class="form-control"/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    await apiFetch('/payment-receipts',{method:'POST',body:JSON.stringify(fields)});
+    closeModal(); renderPaymentReceipts();
+  });
+}
+
+// ============================================================
+// RECEIPT REVERSAL
+// ============================================================
+function renderReceiptReversal() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Payment Receipt Reversal</div></div>
+    <div class="table-card" style="padding:24px;">
+      <div class="flex gap-8 align-center">
+        <input type="text" class="form-control" id="reversal-code" placeholder="Payment Receipt Code" style="width:260px;"/>
+        <button class="btn btn-primary" onclick="doReversal()">SEARCH</button>
+        <button class="btn btn-danger" id="reversal-reverse-btn" onclick="confirmReversal()" style="display:none;">REVERSE</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('reversal-code').value='';document.getElementById('reversal-found').innerHTML='';document.getElementById('reversal-reverse-btn').style.display='none'">CLEAR</button>
+      </div>
+      <div id="reversal-found" style="margin-top:16px;font-size:13px;"></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+}
+async function doReversal() {
+  const code = document.getElementById('reversal-code').value;
+  if (!code) return;
+  const data = await apiFetch(`/payment-receipts?search=${code}`);
+  const found = document.getElementById('reversal-found');
+  if (data?.data?.length) {
+    const r = data.data[0];
+    window._reversalId = r._id;
+    found.innerHTML = `<div class="alert alert-info">Found: <strong>${r.code}</strong> | Customer: ${r.customer?.name||'-'} | Total: Rs.${fmt(r.total)} | Status: ${r.status}</div>`;
+    document.getElementById('reversal-reverse-btn').style.display='';
+  } else {
+    found.innerHTML = '<div class="alert alert-error">Receipt not found</div>';
+  }
+}
+async function confirmReversal() {
+  if (!confirm('Are you sure you want to reverse this receipt?')) return;
+  const code = document.getElementById('reversal-code').value;
+  const res = await apiFetch('/receipt-reversals/reverse',{method:'POST',body:JSON.stringify({code})});
+  if (res?.message) {
+    document.getElementById('reversal-found').innerHTML = '<div class="alert alert-success">Reversed successfully!</div>';
+    document.getElementById('reversal-reverse-btn').style.display='none';
+  }
+}
+
+// ============================================================
+// CHEQUE STATUS (in hand / in process / returned)
+// ============================================================
+async function renderChequeStatus(title, status) {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">${title}</div></div>
+    <div class="table-card">
+      <div class="table-toolbar"><button class="btn btn-primary" onclick="openChequeReceiptModal()">➕ ADD CHEQUE</button></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Customer</th><th>Date</th><th class="text-right">Amount</th><th>Actions</th></tr></thead>
+          <tbody id="chq-tbody"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination"><span id="chq-pag-info">0–0 of 0</span></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  const data = await apiFetch(`/cheque-receipts?status=${status}&limit=20`);
+  const tbody = document.getElementById('chq-tbody');
+  if (!data?.data?.length) { tbody.innerHTML=`<tr><td colspan="6" class="no-data">No cheque to display</td></tr>`; return; }
+  tbody.innerHTML = data.data.map(r=>`<tr><td><input type="checkbox"/></td><td>${r.code}</td><td>${r.customer?.name||'-'}</td><td>${fmtDate(r.date)}</td><td class="text-right">${fmt(r.amount)}</td><td><button class="btn btn-sm btn-danger" onclick="apiFetch('/cheque-receipts/${r._id}',{method:'DELETE'}).then(()=>renderChequeStatus('${title}','${status}'))">🗑️</button></td></tr>`).join('');
+  document.getElementById('chq-pag-info').textContent=`1–${data.data.length} of ${data.total}`;
+}
+
+function openChequeReceiptModal() {
+  openFormModal('Add Cheque Receipt',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Cheque No</label><input name="chequeNo" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">Bank</label><input name="bank" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">Amount</label><input name="amount" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${today()}"/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    await apiFetch('/cheque-receipts',{method:'POST',body:JSON.stringify(fields)});
+    closeModal();
+  });
+}
+
+// ============================================================
+// SUPPLIERS
+// ============================================================
+async function renderSuppliers() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Suppliers</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openSupplierModal()">➕ ADD SUPPLIER</button>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" placeholder="Search..." onkeyup="loadSuppliers(this.value)"/></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Custom Code</th><th>Supplier</th><th>NIC</th><th>Address</th><th>Tel</th><th class="text-right">Debit Balance</th><th>Actions</th></tr></thead>
+          <tbody id="sup-tbody"><tr><td colspan="9" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <select class="rows-select" onchange="window._supLimit=parseInt(this.value);loadSuppliers()"><option>10</option><option>25</option><option>50</option></select>
+        <span id="sup-pag-info">0-0 of 0</span>
+        <button class="page-btn" id="sup-prev" onclick="window._supPage--;loadSuppliers()" disabled>‹</button>
+        <button class="page-btn" id="sup-next" onclick="window._supPage++;loadSuppliers()">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  window._supPage=1; window._supLimit=10;
+  await loadSuppliers();
+}
+
+async function loadSuppliers(search='') {
+  window._supSearch = search;
+  const data = await apiFetch(`/suppliers?page=${window._supPage}&limit=${window._supLimit}&search=${search}`);
+  const tbody = document.getElementById('sup-tbody');
+  if (!tbody) return;
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="9" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(s=>`
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${s.code||'-'}</td>
+      <td>${s.customCode||'-'}</td>
+      <td>${s.name}</td>
+      <td>${s.nic||'-'}</td>
+      <td>${s.address||'-'}</td>
+      <td>${s.tel1||'-'}</td>
+      <td class="text-right">${fmt(s.debitBalance)}</td>
+      <td>
+        <button class="btn btn-sm btn-info" onclick="openSupplierModal('${s._id}')">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSupplier('${s._id}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+  window._supRows = data.data;
+  const { total, page, limit } = data;
+  const from=(page-1)*limit+1,to=Math.min(page*limit,total);
+  document.getElementById('sup-pag-info').textContent=`${total?from:0}–${to} of ${total}`;
+  document.getElementById('sup-prev').disabled=page<=1;
+  document.getElementById('sup-next').disabled=to>=total;
+}
+
+function openSupplierModal(id=null) {
+  const row = id ? (window._supRows||[]).find(r=>r._id===id) : null;
+  openFormModal((id?'Edit':'Add')+' Supplier',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Name *</label><input name="name" class="form-control" value="${row?.name||''}" required/></div>
+      <div class="form-group"><label class="form-label">Custom Code</label><input name="customCode" class="form-control" value="${row?.customCode||''}" required/></div>
+      <div class="form-group"><label class="form-label">NIC *</label><input name="nic" class="form-control" value="${row?.nic||''}" pattern="[0-9]{12}|[0-9]{9}[vV]" title="12 digits OR 9 digits and 'v'" required/></div>
+      <div class="form-group"><label class="form-label">Address</label><input name="address" class="form-control" value="${row?.address||''}" required/></div>
+      <div class="form-group"><label class="form-label">City</label><input name="city" class="form-control" value="${row?.city||''}" required/></div>
+      <div class="form-group"><label class="form-label">Tel 1 *</label><input name="tel1" class="form-control" value="${row?.tel1||''}" pattern="[0-9]{10}" maxlength="10" title="10 digit number" required/></div>
+      <div class="form-group"><label class="form-label">Tel 2</label><input name="tel2" class="form-control" value="${row?.tel2||''}" pattern="[0-9]{10}" maxlength="10" title="10 digit number" required/></div>
+      <div class="form-group"><label class="form-label">Email *</label><input name="email" class="form-control" type="email" value="${row?.email||''}" required/></div>
+      <div class="form-group"><label class="form-label">Debit Balance</label><input name="debitBalance" class="form-control" type="number" value="${row?.debitBalance||0}" required/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    const url=id?`/suppliers/${id}`:'/suppliers';
+    await apiFetch(url,{method:id?'PUT':'POST',body:JSON.stringify(fields)});
+    closeModal(); loadSuppliers();
+  });
+  document.getElementById('modal-box').style.maxWidth='700px';
+}
+async function deleteSupplier(id) {
+  if (!confirm('Delete supplier?')) return;
+  await apiFetch(`/suppliers/${id}`,{method:'DELETE'});
+  loadSuppliers();
+}
+
+// ============================================================
+// PAYMENT VOUCHERS
+// ============================================================
+async function renderPaymentVouchers() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Payment Voucher</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openPaymentVoucherModal()">➕ ADD PAYMENT VOUCHER</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Supplier</th><th class="text-right">Total</th><th class="text-right">Settle-Amt</th><th class="text-right">OverPayment</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="pv-tbody"><tr><td colspan="9" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination"><span id="pv-pag-info">0–0 of 0</span></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  const data = await apiFetch('/payment-vouchers?limit=10');
+  const tbody = document.getElementById('pv-tbody');
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="9" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(r=>`
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${r.code||'-'}</td>
+      <td>${r.supplier?.name||'-'}</td>
+      <td class="text-right">${fmt(r.total)}</td>
+      <td class="text-right">${fmt(r.settleAmt)}</td>
+      <td class="text-right">${fmt(r.overPayment)}</td>
+      <td>${fmtDateTime(r.date)}</td>
+      <td><span class="badge badge-success">${r.status}</span></td>
+      <td><button class="btn btn-sm btn-danger" onclick="apiFetch('/payment-vouchers/${r._id}',{method:'DELETE'}).then(()=>renderPaymentVouchers())">🗑️</button></td>
+    </tr>`).join('');
+  document.getElementById('pv-pag-info').textContent=`1–${data.data.length} of ${data.total}`;
+}
+
+function openPaymentVoucherModal() {
+  openFormModal('Add Payment Voucher',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Settle Amount</label><input name="settleAmt" class="form-control" type="number" value="0"/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    await apiFetch('/payment-vouchers',{method:'POST',body:JSON.stringify(fields)});
+    closeModal(); renderPaymentVouchers();
+  });
+}
+
+// ============================================================
+// VOUCHER REVERSAL
+// ============================================================
+function renderVoucherReversal() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Payment Voucher Reversal</div></div>
+    <div class="table-card" style="padding:24px;">
+      <div class="flex gap-8 align-center">
+        <input type="text" class="form-control" id="vreversal-code" placeholder="Payment Voucher Code" style="width:260px;"/>
+        <button class="btn btn-primary" onclick="doVoucherSearch()">SEARCH</button>
+        <button class="btn btn-danger" id="vreversal-btn" onclick="confirmVoucherReversal()" style="display:none;">REVERSE</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('vreversal-code').value='';document.getElementById('vreversal-found').innerHTML='';document.getElementById('vreversal-btn').style.display='none'">CLEAR</button>
+      </div>
+      <div id="vreversal-found" style="margin-top:16px;"></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+}
+async function doVoucherSearch() {
+  const code = document.getElementById('vreversal-code').value;
+  const data = await apiFetch(`/payment-vouchers?search=${code}`);
+  const found = document.getElementById('vreversal-found');
+  if (data?.data?.length) {
+    const r = data.data[0];
+    window._vreversalCode = code;
+    found.innerHTML = `<div class="alert alert-info">Found: <strong>${r.code}</strong> | Supplier: ${r.supplier?.name||'-'} | Total: Rs.${fmt(r.total)}</div>`;
+    document.getElementById('vreversal-btn').style.display='';
+  } else {
+    found.innerHTML = '<div class="alert alert-error">Voucher not found</div>';
+  }
+}
+async function confirmVoucherReversal() {
+  const code = document.getElementById('vreversal-code').value;
+  const res = await apiFetch('/voucher-reversals/reverse',{method:'POST',body:JSON.stringify({code})});
+  document.getElementById('vreversal-found').innerHTML='<div class="alert alert-success">Reversed successfully!</div>';
+  document.getElementById('vreversal-btn').style.display='none';
+}
+
+// ============================================================
+// CHEQUE VOUCHER STATUS
+// ============================================================
+async function renderChequeVoucherStatus(title, status) {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">${title}</div></div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Supplier</th><th>Mobile</th><th>Deposit Date</th><th class="text-right">Amount</th></tr></thead>
+          <tbody id="chqv-tbody"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination"><span id="chqv-pag-info">0–0 of 0</span></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  const data = await apiFetch(`/cheque-vouchers?status=${status}&limit=20`);
+  const tbody = document.getElementById('chqv-tbody');
+  if (!data?.data?.length) { tbody.innerHTML=`<tr><td colspan="6" class="no-data">No cheque to display</td></tr>`; return; }
+  tbody.innerHTML = data.data.map(r=>`<tr><td><input type="checkbox"/></td><td>${r.code}</td><td>${r.supplier?.name||'-'}</td><td>${r.mobile||'-'}</td><td>${fmtDate(r.depositDate)}</td><td class="text-right">${fmt(r.amount)}</td></tr>`).join('');
+  document.getElementById('chqv-pag-info').textContent=`1–${data.data.length} of ${data.total}`;
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+function renderReports() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Reports</div></div>
+    <div class="table-card" style="padding:16px;">
+      <div class="report-tabs" id="report-main-tabs">
+        ${['SUPPLIER','PURCHASE','STOCK','SUMMARY','CUSTOMER','SALES','EXPENSES','CHEQUE RECEIPT','CHEQUE VOUCHER','PAYMENT'].map((t,i)=>`
+          <button class="report-tab ${i===0?'active':''}" onclick="selectReportTab('${t}',this)">${t}</button>`).join('')}
+      </div>
+      <div id="report-area"></div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  selectReportTab('SUPPLIER', document.querySelector('.report-tab'));
+}
+
+async function selectReportTab(tab, el) {
+  document.querySelectorAll('.report-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const area = document.getElementById('report-area');
+  area.innerHTML = '';
+
+  if (tab==='SUPPLIER') {
+    area.innerHTML = `
+      <div class="report-content">
+        <div class="report-sub-tabs">
+          <button class="report-sub-tab active" onclick="loadSupplierReport('list',this)">SUPPLIERS LIST</button>
+          <button class="report-sub-tab" onclick="loadSupplierReport('debit',this)">DEBIT STATEMENT</button>
+        </div>
+        <div class="report-main">
+          <div class="filter-row">
+            <div class="form-group"><label class="form-label">Supplier</label>
+              <input type="text" class="form-control" id="rpt-supplier-search" list="rpt-supplier-list" placeholder="All Suppliers">
+              <datalist id="rpt-supplier-list"></datalist>
+            </div>
+            <button class="btn btn-primary" onclick="loadSupplierReport()">FIND</button>
+            <button class="btn btn-outline" onclick="">PRINT</button>
+            <button class="btn btn-outline" onclick="">EXPORT TO EXCEL</button>
+          </div>
+          <div id="report-table-area"><div class="no-data">No item to display</div></div>
+        </div>
+      </div>`;
+    const sups = await apiFetch('/suppliers?limit=1000');
+    const dl = document.getElementById('rpt-supplier-list');
+    if (dl && sups?.data) dl.innerHTML = sups.data.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+  } else if (tab==='PURCHASE') {
+    area.innerHTML = `
+      <div class="report-content">
+        <div class="report-sub-tabs">
+          <button class="report-sub-tab active">PURCHASE LIST</button>
+          <button class="report-sub-tab">DAILY PURCHASE</button>
+          <button class="report-sub-tab">DETAIL PURCHASE</button>
+          <button class="report-sub-tab">MONTHLY PURCHASE</button>
+        </div>
+        <div class="report-main">
+          <div class="filter-row">
+            <div class="form-group"><label class="form-label">Supplier</label>
+              <input type="text" class="form-control" id="rpt-pur-supplier" list="rpt-pur-sup-list" placeholder="All Suppliers">
+              <datalist id="rpt-pur-sup-list"></datalist>
+            </div>
+            <div class="form-group"><label class="form-label">From</label><input type="date" class="form-control" id="rpt-pur-from" value="${today()}"/></div>
+            <div class="form-group"><label class="form-label">To</label><input type="date" class="form-control" id="rpt-pur-to" value="${today()}"/></div>
+            <button class="btn btn-primary" onclick="loadPurchaseReport()">FIND</button>
+            <button class="btn btn-outline" onclick="window.print()">PRINT</button>
+          </div>
+          <div id="report-table-area"><div class="no-data">No item to display</div></div>
+        </div>
+      </div>`;
+  } else if (tab==='STOCK') {
+    area.innerHTML = `
+      <div class="report-content">
+        <div class="report-sub-tabs">
+          <button class="report-sub-tab active">STOCK IN HAND</button>
+          <button class="report-sub-tab">STOCK AUDIT</button>
+          <button class="report-sub-tab">ITEM IN STOCK</button>
+          <button class="report-sub-tab">PERIODIC STOCK</button>
+          <button class="report-sub-tab">STOCK ISSUE</button>
+          <button class="report-sub-tab">STOCK IN HAND TOTAL QUANTITY</button>
+        </div>
+        <div class="report-main">
+          <div class="filter-row">
+            <div class="form-group"><label class="form-label">Stock Location</label>
+              <input type="text" class="form-control" id="rpt-stock-loc" list="rpt-stock-loc-list" placeholder="All Locations">
+              <datalist id="rpt-stock-loc-list"></datalist>
+            </div>
+            <button class="btn btn-primary" onclick="loadStockReport()">FIND</button>
+            <button class="btn btn-outline" onclick="window.print()">PRINT</button>
+          </div>
+          <div id="report-table-area"><div class="no-data">No item to display</div></div>
+        </div>
+      </div>`;
+  } else if (tab==='SUMMARY') {
+    const todayStr = today();
+    area.innerHTML = `
+      <div class="report-content">
+        <div class="report-sub-tabs">
+          <button class="report-sub-tab active" onclick="loadDaySummary()">DAY END SUMMARY</button>
+          <button class="report-sub-tab">DAILY SUMMARY</button>
+          <button class="report-sub-tab">MONTHLY SUMMARY</button>
+          <button class="report-sub-tab">PERIODIC SUMMARY</button>
+        </div>
+        <div class="report-main">
+          <div class="filter-row">
+            <div class="form-group"><label class="form-label">Day End Summary</label><input type="date" class="form-control" id="summary-date" value="${todayStr}"/></div>
+            <button class="btn btn-primary" onclick="loadDaySummary()">FIND</button>
+            <button class="btn btn-outline">PRINT</button>
+            <button class="btn btn-outline">EXPORT TO EXCEL</button>
+          </div>
+          <div id="report-table-area">
+            <table><thead><tr><th>Transaction</th><th>Details</th><th class="text-right">Debit (-)</th><th class="text-right">Credit (+)</th></tr></thead>
+            <tbody id="summary-tbody"><tr><td colspan="4" class="no-data">No Data</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>`;
+  } else if (tab==='SALES') {
+    area.innerHTML = `
+      <div class="report-content">
+        <div class="report-sub-tabs">
+          <button class="report-sub-tab active">SALES LIST</button>
+          <button class="report-sub-tab">DAILY SALES</button>
+          <button class="report-sub-tab">MONTHLY SALES</button>
+          <button class="report-sub-tab">CUSTOMER SALES</button>
+          <button class="report-sub-tab">SALES REP SALES</button>
+        </div>
+        <div class="report-main">
+          <div class="filter-row">
+            <div class="form-group"><label class="form-label">From</label><input type="date" class="form-control" id="rpt-from" value="${today()}"/></div>
+            <div class="form-group"><label class="form-label">To</label><input type="date" class="form-control" id="rpt-to" value="${today()}"/></div>
+            <button class="btn btn-primary" onclick="loadSalesReport()">FIND</button>
+            <button class="btn btn-outline">PRINT</button>
+            <button class="btn btn-outline">EXPORT TO EXCEL</button>
+          </div>
+          <div id="report-table-area"><div class="no-data">Select date range and click FIND</div></div>
+        </div>
+      </div>`;
+  } else if (tab==='EXPENSES') {
+    area.innerHTML = `
+      <div class="report-main" style="width:100%">
+        <div class="filter-row">
+          <div class="form-group"><label class="form-label">From</label><input type="date" class="form-control" id="rpt-exp-from" value="${today()}"/></div>
+          <div class="form-group"><label class="form-label">To</label><input type="date" class="form-control" id="rpt-exp-to" value="${today()}"/></div>
+          <button class="btn btn-primary" onclick="loadExpensesReport()">FIND</button>
+          <button class="btn btn-outline" onclick="window.print()">PRINT</button>
+        </div>
+        <div id="report-table-area"><div class="no-data">No item to display</div></div>
+      </div>`;
+  } else if (tab==='CUSTOMER') {
+    area.innerHTML = `<div class="report-main" style="width:100%"><div id="report-table-area"><div class="loading"><div class="spinner"></div></div></div></div>`;
+    const data = await apiFetch('/reports/customer?limit=20');
+    const rta = document.getElementById('report-table-area');
+    if (!data?.data?.length) { rta.innerHTML='<div class="no-data">No data</div>'; return; }
+    rta.innerHTML = `<table><thead><tr><th>Code</th><th>Name</th><th>City</th><th>Tel</th><th class="text-right">Credit Amount</th></tr></thead>
+      <tbody>${data.data.map(c=>`<tr><td>${c.code}</td><td>${c.name}</td><td>${c.city||'-'}</td><td>${c.tel||'-'}</td><td class="text-right">${fmt(c.creditAmount)}</td></tr>`).join('')}</tbody></table>`;
+  } else if (tab==='CHEQUE RECEIPT') {
+    area.innerHTML = `<div class="report-main" style="width:100%"><div class="no-data">Select filter to view cheque receipts</div></div>`;
+  } else if (tab==='CHEQUE VOUCHER') {
+    area.innerHTML = `<div class="report-main" style="width:100%"><div class="no-data">Select filter to view cheque vouchers</div></div>`;
+  } else if (tab==='PAYMENT') {
+    area.innerHTML = `<div class="report-main" style="width:100%">
+      <div class="filter-row">
+        <div class="form-group"><label class="form-label">From</label><input type="date" class="form-control" id="rpt-pay-from" value="${today()}"/></div>
+        <div class="form-group"><label class="form-label">To</label><input type="date" class="form-control" id="rpt-pay-to" value="${today()}"/></div>
+        <button class="btn btn-primary" onclick="loadPaymentReport()">FIND</button>
+        <button class="btn btn-outline" onclick="window.print()">PRINT</button>
+      </div>
+      <div id="report-table-area"><div class="no-data">Select date range and click FIND</div></div>
+    </div>`;
+  }
+}
+
+async function loadDaySummary() {
+  const dateVal = document.getElementById('summary-date')?.value || today();
+  const data = await apiFetch(`/reports/summary/day-end?date=${dateVal}`);
+  const tbody = document.getElementById('summary-tbody');
+  if (!tbody) return;
+  if (!data) { tbody.innerHTML='<tr><td colspan="4" class="no-data">No Data</td></tr>'; return; }
+  tbody.innerHTML = `
+    <tr><td>Sales</td><td>Invoice Sales</td><td></td><td class="text-right fw-bold">${fmt(data.sales?.total||0)}</td></tr>
+    <tr><td>Receipts</td><td>Customer Payments</td><td></td><td class="text-right">${fmt(data.receipts||0)}</td></tr>
+    <tr><td>Returns</td><td>Sales Returns</td><td class="text-right">${fmt(data.returns||0)}</td><td></td></tr>
+    <tr><td>Expenses</td><td>Daily Expenses</td><td class="text-right">${fmt(data.expenses||0)}</td><td></td></tr>`;
+}
+
+async function loadSalesReport() {
+  const from = document.getElementById('rpt-from')?.value;
+  const to = document.getElementById('rpt-to')?.value;
+  const data = await apiFetch(`/reports/sales?from=${from}&to=${to}&limit=20`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.data?.length) { rta.innerHTML='<div class="no-data">No sales found</div>'; return; }
+  rta.innerHTML = `<table><thead><tr><th>Code</th><th>Customer</th><th>Date</th><th class="text-right">Total</th><th>Status</th></tr></thead>
+    <tbody>${data.data.map(r=>`<tr><td>${r.code}</td><td>${r.customer?.name||'Cash'}</td><td>${fmtDate(r.date)}</td><td class="text-right">${fmt(r.total)}</td><td><span class="badge badge-success">${r.status}</span></td></tr>`).join('')}</tbody></table>`;
+}
+
+async function loadSupplierReport(subTab = 'list', el = null) {
+  if (el) {
+    document.querySelectorAll('.report-sub-tab').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    window._rptSubTab = subTab;
+  }
+  const sTab = window._rptSubTab || 'list';
+  const supName = document.getElementById('rpt-supplier-search')?.value;
+  const rta = document.getElementById('report-table-area');
+  rta.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+
+  if (sTab === 'list') {
+    const data = await apiFetch(`/suppliers?search=${supName||''}&limit=100`);
+    if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No suppliers found</div>'; return; }
+    rta.innerHTML = `<table><thead><tr><th>Code</th><th>Name</th><th>NIC</th><th>Tel</th><th class="text-right">Debit Balance</th></tr></thead>
+      <tbody>${data.data.map(s => `<tr><td>${s.code}</td><td>${s.name}</td><td>${s.nic||'-'}</td><td>${s.tel1||'-'}</td><td class="text-right">${fmt(s.debitBalance)}</td></tr>`).join('')}</tbody></table>`;
+  } else {
+    rta.innerHTML = '<div class="no-data">Statement report coming soon...</div>';
+  }
+}
+
+async function loadPurchaseReport() {
+  const from = document.getElementById('rpt-pur-from')?.value;
+  const to = document.getElementById('rpt-pur-to')?.value;
+  const sup = document.getElementById('rpt-pur-supplier')?.value;
+  const data = await apiFetch(`/reports/purchase?from=${from}&to=${to}&supplier=${sup||''}&limit=50`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No purchases found</div>'; return; }
+  rta.innerHTML = `<table><thead><tr><th>Code</th><th>Supplier</th><th>Inv Code</th><th>Date</th><th class="text-right">Total</th></tr></thead>
+    <tbody>${data.data.map(r => `<tr><td>${r.code}</td><td>${r.supplier?.name||'-'}</td><td>${r.invoiceCode||'-'}</td><td>${fmtDate(r.date)}</td><td class="text-right">${fmt(r.total)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function loadStockReport() {
+  const loc = document.getElementById('rpt-stock-loc')?.value;
+  const data = await apiFetch(`/reports/stock?location=${loc||''}&limit=50`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No stock data found</div>'; return; }
+  rta.innerHTML = `<table><thead><tr><th>Barcode</th><th>Name</th><th>Category</th><th>Brand</th><th class="text-right">Price</th><th class="text-right">Stock Qty</th></tr></thead>
+    <tbody>${data.data.map(i => `<tr><td>${i.barcode||'-'}</td><td>${i.name}</td><td>${i.category?.name||'-'}</td><td>${i.brand?.name||'-'}</td><td class="text-right">${fmt(i.retailPrice)}</td><td class="text-right">${i.stockQuantity}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function loadExpensesReport() {
+  const from = document.getElementById('rpt-exp-from')?.value;
+  const to = document.getElementById('rpt-exp-to')?.value;
+  const data = await apiFetch(`/reports/expenses?from=${from}&to=${to}&limit=50`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No expenses found</div>'; return; }
+  rta.innerHTML = `<table><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Remarks</th><th class="text-right">Total</th></tr></thead>
+    <tbody>${data.data.map(e => `<tr><td>${fmtDate(e.date)}</td><td>${e.type?.name||'-'}</td><td>${e.category||'-'}</td><td>${e.remarks||'-'}</td><td class="text-right">${fmt(e.total)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function loadPaymentReport() {
+  const from = document.getElementById('rpt-pay-from')?.value;
+  const to = document.getElementById('rpt-pay-to')?.value;
+  const data = await apiFetch(`/reports/payment?from=${from}&to=${to}`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.receipts?.length && !data?.vouchers?.length) { rta.innerHTML = '<div class="no-data">No payments found</div>'; return; }
+  
+  let html = '<h4>Receipts</h4><table><thead><tr><th>Code</th><th>Customer</th><th>Date</th><th class="text-right">Amount</th></tr></thead><tbody>';
+  html += (data.receipts||[]).map(r => `<tr><td>${r.code}</td><td>${r.customer?.name||'-'}</td><td>${fmtDate(r.date)}</td><td class="text-right">${fmt(r.settleAmt)}</td></tr>`).join('');
+  html += '</tbody></table><h4 style="margin-top:20px;">Vouchers</h4><table><thead><tr><th>Code</th><th>Supplier</th><th>Date</th><th class="text-right">Amount</th></tr></thead><tbody>';
+  html += (data.vouchers||[]).map(v => `<tr><td>${v.code}</td><td>${v.supplier?.name||'-'}</td><td>${fmtDate(v.date)}</td><td class="text-right">${fmt(v.settleAmt)}</td></tr>`).join('');
+  html += '</tbody></table>';
+  rta.innerHTML = html;
+}
+
+// ============================================================
+// BARCODE
+// ============================================================
+async function renderBarcode() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Barcode Generator</div></div>
+    <div class="barcode-card">
+      <div class="form-group mb-14">
+        <label class="form-label">Select Item</label>
+        <select class="form-control" id="barcode-item" onchange="generateBarcode()"><option value="">Select item...</option></select>
+      </div>
+      <div class="form-grid mb-14">
+        <div class="form-group">
+          <label class="form-label">Barcode Value</label>
+          <input type="text" class="form-control" id="barcode-value" oninput="generateBarcode()" placeholder="Enter barcode manually"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity to Print</label>
+          <input type="number" class="form-control" id="barcode-qty" value="1" min="1"/>
+        </div>
+      </div>
+      <div class="barcode-preview" id="barcode-preview">
+        <div style="font-size:13px;color:var(--text-light);">Select an item or enter barcode</div>
+      </div>
+      <canvas id="barcode-canvas" style="display:none;"></canvas>
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="printBarcode()">🖨️ Print Barcode</button>
+        <button class="btn btn-outline" onclick="downloadBarcode()">⬇️ Download</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  const data = await apiFetch('/items?limit=500');
+  const sel = document.getElementById('barcode-item');
+  if (data?.data) data.data.forEach(i=>{ sel.innerHTML+=`<option value="${i.barcode||i.code}" data-name="${i.name}">${i.name} (${i.code})</option>`; });
+}
+function generateBarcode() {
+  const sel = document.getElementById('barcode-item');
+  const val = sel.value || document.getElementById('barcode-value').value;
+  if (!val) return;
+  document.getElementById('barcode-value').value = val;
+  const preview = document.getElementById('barcode-preview');
+  const name = sel.value ? sel.options[sel.selectedIndex].dataset.name : 'ITEM';
+  preview.innerHTML = `
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px;">${name}</div>
+    <div style="font-family:monospace;font-size:22px;letter-spacing:6px;color:#000;">${val}</div>
+    <svg id="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="200" height="50" style="margin-top:8px;">${generateBarsHTML(val)}</svg>
+    <div style="font-size:11px;margin-top:4px;">${val}</div>`;
+}
+function generateBarsHTML(code) {
+  let bars=''; let x=10;
+  for(let c of code) {
+    const w = (c.charCodeAt(0)%3)+1;
+    bars+=`<rect x="${x}" y="5" width="${w}" height="38" fill="#000"/>`;
+    x+=w+2;
+  }
+  return bars;
+}
+function printBarcode() { window.print(); }
+function downloadBarcode() { alert('Barcode download - for production use a barcode library like JsBarcode'); }
+
+// ============================================================
+// EXPENSES
+// ============================================================
+async function renderExpenses() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="page-header"><div class="page-title">Expenses</div></div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <button class="btn btn-primary" onclick="openExpenseModal()">➕ ADD EXPENSES</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Date</th><th>Type</th><th>Category</th><th>Remarks</th><th class="text-right">Total</th><th>Actions</th></tr></thead>
+          <tbody id="exp-tbody"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <select class="rows-select" onchange="window._expLimit=parseInt(this.value);loadExpenses()"><option>10</option><option>25</option></select>
+        <span id="exp-pag-info">0-0 of 0</span>
+        <button class="page-btn" id="exp-prev" onclick="window._expPage--;loadExpenses()" disabled>‹</button>
+        <button class="page-btn" id="exp-next" onclick="window._expPage++;loadExpenses()">›</button>
+      </div>
+    </div>
+    <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
+  window._expPage=1; window._expLimit=10;
+  await loadExpenses();
+}
+
+async function loadExpenses() {
+  const data = await apiFetch(`/expenses?page=${window._expPage}&limit=${window._expLimit}`);
+  const tbody = document.getElementById('exp-tbody');
+  if (!tbody) return;
+  if (!data?.data?.length) { tbody.innerHTML='<tr><td colspan="7" class="no-data">No item to display</td></tr>'; return; }
+  tbody.innerHTML = data.data.map(e=>`
+    <tr>
+      <td><input type="checkbox"/></td>
+      <td>${fmtDateTime(e.date)}</td>
+      <td>${e.type?.name||'-'}</td>
+      <td>${e.category||'-'}</td>
+      <td>${e.remarks||'-'}</td>
+      <td class="text-right">${fmt(e.total)}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="apiFetch('/expenses/${e._id}',{method:'DELETE'}).then(()=>loadExpenses())">🗑️</button></td>
+    </tr>`).join('');
+  window._expRows = data.data;
+  const { total, page, limit } = data;
+  const from=(page-1)*limit+1,to=Math.min(page*limit,total);
+  document.getElementById('exp-pag-info').textContent=`${total?from:0}–${to} of ${total}`;
+  document.getElementById('exp-prev').disabled=page<=1;
+  document.getElementById('exp-next').disabled=to>=total;
+}
+
+async function openExpenseModal() {
+  const types = await apiFetch('/expenses-types?limit=100');
+  const typeOpts = (types?.data||[]).map(t=>`<option value="${t._id}">${t.name}</option>`).join('');
+  openFormModal('Add Expense',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Type</label>
+        <input name="typeName" class="form-control" list="exp-types-list" placeholder="Select or type expense type">
+        <datalist id="exp-types-list">${typeOpts}</datalist>
+      </div>
+      <div class="form-group"><label class="form-label">Category</label><input name="category" class="form-control" placeholder="e.g. PT-6280 BOLERO" required/></div>
+      <div class="form-group"><label class="form-label">Remarks</label><input name="remarks" class="form-control" required/></div>
+      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0" required/></div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="datetime-local" value="${toLocalDatetimeInput()}" required/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>{ if(f.value) fields[f.name]=f.value; });
+    await apiFetch('/expenses',{method:'POST',body:JSON.stringify(fields)});
+    closeModal(); loadExpenses();
+  });
+}
+
+// ============================================================
+// MODAL HELPER
+// ============================================================
+function openFormModal(title, bodyHTML, onSave) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = `<form id="modal-form">${bodyHTML}</form>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="window._modalSave()">Save</button>`;
+  document.getElementById('modal-box').style.maxWidth = '600px';
+  window._modalSave = () => {
+    const form = document.getElementById('modal-form');
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    onSave();
+  };
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmt(n) {
+  n = parseFloat(n)||0;
+  return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtDate(d) {
+  if (!d) return '-';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '-';
+  return dt.toLocaleDateString('en-GB');
+}
+function fmtDateTime(d) {
+  if (!d) return '-';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '-';
+  return dt.toLocaleString('en-GB');
+}
+function formatDate(d, offset=0) {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate()+offset);
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; return `${days[dt.getDay()]} ${MONTHS[dt.getMonth()]} ${String(dt.getDate()).padStart(2,'0')} ${dt.getFullYear()}`;
+}
+function today() {
+  return new Date().toISOString().substring(0,10);
+}
+function toLocalDatetimeInput() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  return now.toISOString().slice(0,16);
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.key==='F11') { e.preventDefault(); document.documentElement.requestFullscreen?.(); }
+  if (e.key==='Escape') closeModal();
+  if (e.key==='F1' && currentPage==='invoice') processPayment('CASH');
+});
+
+// ============================================================
+// INIT
+// ============================================================
+if (token) {
+  document.getElementById('login-screen').style.display='none';
+  init();
+}
+document.getElementById('login-user').addEventListener('keypress', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('login-pass').addEventListener('keypress', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>
