@@ -33,9 +33,9 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    // Remove empty ObjectId refs
     const body = { ...req.body };
     ['category','brand','unit','colour','binLocation'].forEach(f => { if (!body[f]) delete body[f]; });
+    await Item.resolveRefs(body);
     const item = new Item(body);
     await item.save();
     res.status(201).json(item);
@@ -46,6 +46,7 @@ router.put('/:id', async (req, res) => {
   try {
     const body = { ...req.body };
     ['category','brand','unit','colour','binLocation'].forEach(f => { if (!body[f]) delete body[f]; });
+    await Item.resolveRefs(body);
     const item = await Item.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
     if (!item) return res.status(404).json({ error: 'Item not found' });
     res.json(item);

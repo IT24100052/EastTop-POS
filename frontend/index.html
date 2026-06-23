@@ -879,7 +879,7 @@ async function processPayment(method) {
   const payload = {
     customer: custId || custName || undefined,
     items: items.map(i=>({ item:i.id, description:i.name, qty:i.qty, unitPrice:i.unitPrice, discountPct:i.discount, discountAmt:i.unitPrice*i.qty*i.discount/100, total:i.total })),
-    total, paymentMethod: method, status:'A'
+    total, paymentMethod: method, status:'Active'
   };
   const res = await apiFetch('/invoices',{method:'POST',body:JSON.stringify(payload)});
   if (res && (res._id || res.code)) {
@@ -1190,7 +1190,7 @@ async function renderGRN(mode) {
 
 async function loadGRNList() {
   const mode = window._grnMode;
-  const status = mode==='paid' ? 'paid' : '';
+  const status = mode==='paid' ? 'Paid' : '';
   const data = await apiFetch(`/grn?page=${window._grnPage}&limit=${window._grnLimit}&search=${window._grnSearch}${status?'&status='+status:''}`);
   const tbody = document.getElementById('grn-tbody');
   if (!tbody) return;
@@ -1220,26 +1220,96 @@ async function loadGRNList() {
 function searchGRN(val) { window._grnSearch=val; window._grnPage=1; loadGRNList(); }
 
 async function openGRNModal(row=null) {
+  // Pre-load supplier and item data
+  const [supData, itemData] = await Promise.all([
+    apiFetch('/suppliers?limit=500'),
+    apiFetch('/items?limit=1000')
+  ]);
+  const supOpts = (supData?.data||[]).map(s=>`<option value="${s.name}">${s.name} (${s.code})</option>`).join('');
+  const itemOpts = (itemData?.data||[]).map(i=>`<option value="${i.name}" data-id="${i._id}">`).join('');
+  window._grnModalItems = (row?.items||[]).map(li=>({ itemName: li.item?.name||'', qty: li.qty||0, unitCost: li.unitCost||0, total: li.total||0 }));
+
   openFormModal('Add GRN', `
     <div class="form-grid">
       <div class="form-group"><label class="form-label">Supplier</label>
         <input name="supplierName" class="form-control" list="grn-sup-list" placeholder="Supplier name" value="${row?.supplier?.name||''}"/>
-        <datalist id="grn-sup-list"></datalist>
+        <datalist id="grn-sup-list">${supOpts}</datalist>
       </div>
       <div class="form-group"><label class="form-label">Invoice Code</label><input name="invoiceCode" class="form-control" value="${row?.invoiceCode||''}"/></div>
       <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${row?.date?.substring(0,10)||today()}"/></div>
       <div class="form-group"><label class="form-label">GRN Date</label><input name="grnDate" class="form-control" type="date" value="${row?.grnDate?.substring(0,10)||today()}"/></div>
-      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="${row?.total||0}"/></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select name="status" class="form-control">
+          <option value="Pending" ${(!row||row.status==='Pending')?'selected':''}>Pending</option>
+          <option value="Paid" ${row?.status==='Paid'?'selected':''}>Paid</option>
+          <option value="Partial" ${row?.status==='Partial'?'selected':''}>Partial</option>
+        </select>
+      </div>
       <div class="form-group"><label class="form-label">Notes</label><input name="notes" class="form-control" value="${row?.notes||''}"/></div>
+    </div>
+    <div style="margin-top:14px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Items</div>
+      <datalist id="grn-item-list">${itemOpts}</datalist>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="background:#f7f9fc;"><th style="padding:6px;text-align:left;">Item</th><th style="padding:6px;width:70px;">Qty</th><th style="padding:6px;width:90px;">Unit Cost</th><th style="padding:6px;width:90px;">Total</th><th style="padding:6px;width:32px;"></th></tr></thead>
+        <tbody id="grn-items-rows"></tbody>
+      </table>
+      <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="addGRNItemRow()">+ Add Item</button>
     </div>`, async () => {
     const fields = {};
-    document.querySelectorAll('#modal-body [name]').forEach(f => fields[f.name]=f.value);
-    await apiFetch('/grn',{method:'POST',body:JSON.stringify(fields)});
+    document.querySelectorAll('#modal-body [name]').forEach(f => fields[f.name] = f.value);
+    // Collect items
+    const itemRows = document.querySelectorAll('#grn-items-rows tr');
+    fields.items = [];
+    itemRows.forEach(tr => {
+      const nameEl = tr.querySelector('[data-field="itemName"]');
+      const qtyEl  = tr.querySelector('[data-field="qty"]');
+      const costEl = tr.querySelector('[data-field="unitCost"]');
+      const itemName = nameEl?.value?.trim();
+      const qty  = parseFloat(qtyEl?.value)||0;
+      const cost = parseFloat(costEl?.value)||0;
+      if (itemName && qty > 0) {
+        // Try to resolve item id from datalist
+        const opt = document.querySelector(`#grn-item-list option[value="${itemName}"]`);
+        const itemId = opt?.dataset?.id;
+        const entry = { qty, unitCost: cost, total: qty * cost, description: itemName };
+        if (itemId) entry.item = itemId;
+        fields.items.push(entry);
+      }
+    });
+    // Compute total from items
+    fields.total = fields.items.reduce((s, i) => s + (i.total||0), 0);
+    await apiFetch('/grn', { method:'POST', body:JSON.stringify(fields) });
     closeModal(); loadGRNList();
   });
-  const supData = await apiFetch('/suppliers?limit=500');
-  const dl = document.getElementById('grn-sup-list');
-  if (dl && supData?.data) dl.innerHTML = supData.data.map(s=>`<option value="${s.name}">${s.name} (${s.code})</option>`).join('');
+  renderGRNItemRows();
+}
+
+function renderGRNItemRows() {
+  const tbody = document.getElementById('grn-items-rows');
+  if (!tbody) return;
+  const items = window._grnModalItems || [];
+  if (!items.length) items.push({ itemName:'', qty:1, unitCost:0, total:0 });
+  tbody.innerHTML = items.map((it, i) => `
+    <tr>
+      <td style="padding:4px;"><input data-field="itemName" class="form-control" list="grn-item-list" value="${it.itemName||''}" style="font-size:12px;" onchange="updateGRNItemRow(${i},'itemName',this.value)"/></td>
+      <td style="padding:4px;"><input data-field="qty" type="number" class="form-control" value="${it.qty||1}" min="0" style="font-size:12px;" onchange="updateGRNItemRow(${i},'qty',this.value)"/></td>
+      <td style="padding:4px;"><input data-field="unitCost" type="number" class="form-control" value="${it.unitCost||0}" min="0" style="font-size:12px;" onchange="updateGRNItemRow(${i},'unitCost',this.value)"/></td>
+      <td style="padding:4px;font-size:12px;">${fmt((it.qty||0)*(it.unitCost||0))}</td>
+      <td style="padding:4px;"><button type="button" onclick="removeGRNItemRow(${i})" style="background:#e53e3e;color:#fff;border:none;border-radius:3px;padding:2px 6px;cursor:pointer;">×</button></td>
+    </tr>`).join('');
+}
+function addGRNItemRow() {
+  (window._grnModalItems = window._grnModalItems||[]).push({ itemName:'', qty:1, unitCost:0 });
+  renderGRNItemRows();
+}
+function removeGRNItemRow(i) {
+  window._grnModalItems.splice(i,1);
+  renderGRNItemRows();
+}
+function updateGRNItemRow(i, field, val) {
+  window._grnModalItems[i][field] = field==='itemName' ? val : (parseFloat(val)||0);
+  renderGRNItemRows();
 }
 async function editGRN(id) {
   const row = window._grnRows?.find(r=>r._id===id);
@@ -1556,16 +1626,28 @@ async function renderPaymentReceipts() {
   document.getElementById('pr-pag-info').textContent = `1–${data.data.length} of ${data.total}`;
 }
 
-function openPaymentReceiptModal() {
+async function openPaymentReceiptModal() {
+  const custData = await apiFetch('/customers?limit=1000');
+  const custOpts = (custData?.data||[]).map(c=>`<option value="${c._id}">${c.name} (${c.code})</option>`).join('');
   openFormModal('Add Payment Receipt',`
     <div class="form-grid">
-      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0"/></div>
-      <div class="form-group"><label class="form-label">Settle Amount</label><input name="settleAmt" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Customer *</label>
+        <select name="customer" class="form-control" required>
+          <option value="">-- Select Customer --</option>
+          ${custOpts}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Settle Amount</label><input name="settleAmt" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Over Payment</label><input name="overPayment" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${today()}"/></div>
       <div class="form-group"><label class="form-label">Notes</label><input name="notes" class="form-control"/></div>
     </div>`, async()=>{
     const fields={};
     document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
-    await apiFetch('/payment-receipts',{method:'POST',body:JSON.stringify(fields)});
+    if (!fields.customer) return alert('Customer is required');
+    const res = await apiFetch('/payment-receipts',{method:'POST',body:JSON.stringify(fields)});
+    if (res?.error) return alert('Error: '+res.error);
     closeModal(); renderPaymentReceipts();
   });
 }
@@ -1637,18 +1719,33 @@ async function renderChequeStatus(title, status) {
   document.getElementById('chq-pag-info').textContent=`1–${data.data.length} of ${data.total}`;
 }
 
-function openChequeReceiptModal() {
+async function openChequeReceiptModal() {
+  const custData = await apiFetch('/customers?limit=1000');
+  const custOpts = (custData?.data||[]).map(c=>`<option value="${c._id}">${c.name} (${c.code})</option>`).join('');
   openFormModal('Add Cheque Receipt',`
     <div class="form-grid">
-      <div class="form-group"><label class="form-label">Cheque No</label><input name="chequeNo" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">Customer *</label>
+        <select name="customer" class="form-control" required>
+          <option value="">-- Select Customer --</option>
+          ${custOpts}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Cheque No *</label><input name="chequeNo" class="form-control" required/></div>
       <div class="form-group"><label class="form-label">Bank</label><input name="bank" class="form-control"/></div>
-      <div class="form-group"><label class="form-label">Amount</label><input name="amount" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Amount</label><input name="amount" class="form-control" type="number" value="0" min="0"/></div>
       <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${today()}"/></div>
+      <div class="form-group"><label class="form-label">Deposit Date</label><input name="depositDate" class="form-control" type="date"/></div>
     </div>`, async()=>{
     const fields={};
     document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
-    await apiFetch('/cheque-receipts',{method:'POST',body:JSON.stringify(fields)});
+    if (!fields.customer) return alert('Customer is required');
+    if (!fields.chequeNo) return alert('Cheque No is required');
+    const res = await apiFetch('/cheque-receipts',{method:'POST',body:JSON.stringify(fields)});
+    if (res?.error) return alert('Error: '+res.error);
     closeModal();
+    // Refresh current cheque status view
+    const tbody = document.getElementById('chq-tbody');
+    if (tbody) renderChequeStatus(window._chqTitle||'Cheque in hand', window._chqStatus||'hand');
   });
 }
 
@@ -1777,15 +1874,27 @@ async function renderPaymentVouchers() {
   document.getElementById('pv-pag-info').textContent=`1–${data.data.length} of ${data.total}`;
 }
 
-function openPaymentVoucherModal() {
+async function openPaymentVoucherModal() {
+  const supData = await apiFetch('/suppliers?limit=1000');
+  const supOpts = (supData?.data||[]).map(s=>`<option value="${s._id}">${s.name} (${s.code})</option>`).join('');
   openFormModal('Add Payment Voucher',`
     <div class="form-grid">
-      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0"/></div>
-      <div class="form-group"><label class="form-label">Settle Amount</label><input name="settleAmt" class="form-control" type="number" value="0"/></div>
+      <div class="form-group"><label class="form-label">Supplier *</label>
+        <select name="supplier" class="form-control" required>
+          <option value="">-- Select Supplier --</option>
+          ${supOpts}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Total</label><input name="total" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Settle Amount</label><input name="settleAmt" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Over Payment</label><input name="overPayment" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${today()}"/></div>
     </div>`, async()=>{
     const fields={};
     document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
-    await apiFetch('/payment-vouchers',{method:'POST',body:JSON.stringify(fields)});
+    if (!fields.supplier) return alert('Supplier is required');
+    const res = await apiFetch('/payment-vouchers',{method:'POST',body:JSON.stringify(fields)});
+    if (res?.error) return alert('Error: '+res.error);
     closeModal(); renderPaymentVouchers();
   });
 }
@@ -1836,10 +1945,11 @@ async function renderChequeVoucherStatus(title, status) {
   content.innerHTML = `
     <div class="page-header"><div class="page-title">${title}</div></div>
     <div class="table-card">
+      <div class="table-toolbar"><button class="btn btn-primary" onclick="openChequeVoucherModal()">➕ ADD CHEQUE VOUCHER</button></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Supplier</th><th>Mobile</th><th>Deposit Date</th><th class="text-right">Amount</th></tr></thead>
-          <tbody id="chqv-tbody"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody>
+          <thead><tr><th class="checkbox-col"><input type="checkbox"/></th><th>Code</th><th>Supplier</th><th>Mobile</th><th>Deposit Date</th><th class="text-right">Amount</th><th>Actions</th></tr></thead>
+          <tbody id="chqv-tbody"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody>
         </table>
       </div>
       <div class="pagination"><span id="chqv-pag-info">0–0 of 0</span></div>
@@ -1847,9 +1957,39 @@ async function renderChequeVoucherStatus(title, status) {
     <div class="page-footer">'Solution By: EastTop by IRM | <a href="https://www.irm.lk" target="_blank">www.irm.lk</a> | <a href="mailto:info@irm.lk">info@irm.lk</a>'<br>Copyright © IRM 2026.</div>`;
   const data = await apiFetch(`/cheque-vouchers?status=${status}&limit=20`);
   const tbody = document.getElementById('chqv-tbody');
-  if (!data?.data?.length) { tbody.innerHTML=`<tr><td colspan="6" class="no-data">No cheque to display</td></tr>`; return; }
-  tbody.innerHTML = data.data.map(r=>`<tr><td><input type="checkbox"/></td><td>${r.code}</td><td>${r.supplier?.name||'-'}</td><td>${r.mobile||'-'}</td><td>${fmtDate(r.depositDate)}</td><td class="text-right">${fmt(r.amount)}</td></tr>`).join('');
+  if (!data?.data?.length) { tbody.innerHTML=`<tr><td colspan="7" class="no-data">No cheque to display</td></tr>`; return; }
+  tbody.innerHTML = data.data.map(r=>`<tr><td><input type="checkbox"/></td><td>${r.code}</td><td>${r.supplier?.name||'-'}</td><td>${r.mobile||'-'}</td><td>${fmtDate(r.depositDate)}</td><td class="text-right">${fmt(r.amount)}</td><td><button class="btn btn-sm btn-danger" onclick="apiFetch('/cheque-vouchers/${r._id}',{method:'DELETE'}).then(()=>renderChequeVoucherStatus('${title}','${status}'))">🗑️</button></td></tr>`).join('');
   document.getElementById('chqv-pag-info').textContent=`1–${data.data.length} of ${data.total}`;
+}
+
+async function openChequeVoucherModal() {
+  const supData = await apiFetch('/suppliers?limit=1000');
+  const supOpts = (supData?.data||[]).map(c=>`<option value="${c._id}">${c.name} (${c.code})</option>`).join('');
+  openFormModal('Add Cheque Voucher',`
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Supplier *</label>
+        <select name="supplier" class="form-control" required>
+          <option value="">-- Select Supplier --</option>
+          ${supOpts}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Cheque No *</label><input name="chequeNo" class="form-control" required/></div>
+      <div class="form-group"><label class="form-label">Bank</label><input name="bank" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">Mobile</label><input name="mobile" class="form-control"/></div>
+      <div class="form-group"><label class="form-label">Amount</label><input name="amount" class="form-control" type="number" value="0" min="0"/></div>
+      <div class="form-group"><label class="form-label">Date</label><input name="date" class="form-control" type="date" value="${today()}"/></div>
+      <div class="form-group"><label class="form-label">Deposit Date</label><input name="depositDate" class="form-control" type="date"/></div>
+    </div>`, async()=>{
+    const fields={};
+    document.querySelectorAll('#modal-body [name]').forEach(f=>fields[f.name]=f.value);
+    if (!fields.supplier) return alert('Supplier is required');
+    if (!fields.chequeNo) return alert('Cheque No is required');
+    const res = await apiFetch('/cheque-vouchers',{method:'POST',body:JSON.stringify(fields)});
+    if (res?.error) return alert('Error: '+res.error);
+    closeModal();
+    const tbody = document.getElementById('chqv-tbody');
+    if (tbody) renderChequeVoucherStatus(window._chqvTitle||'Cheque in hand', window._chqvStatus||'hand');
+  });
 }
 
 // ============================================================
@@ -2008,9 +2148,37 @@ async function selectReportTab(tab, el) {
     rta.innerHTML = `<table><thead><tr><th>Code</th><th>Name</th><th>City</th><th>Tel</th><th class="text-right">Credit Amount</th></tr></thead>
       <tbody>${data.data.map(c=>`<tr><td>${c.code}</td><td>${c.name}</td><td>${c.city||'-'}</td><td>${c.tel||'-'}</td><td class="text-right">${fmt(c.creditAmount)}</td></tr>`).join('')}</tbody></table>`;
   } else if (tab==='CHEQUE RECEIPT') {
-    area.innerHTML = `<div class="report-main" style="width:100%"><div class="no-data">Select filter to view cheque receipts</div></div>`;
+    area.innerHTML = `<div class="report-main" style="width:100%">
+      <div class="filter-row">
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="rpt-cr-status">
+            <option value="">All</option>
+            <option value="hand">In Hand</option>
+            <option value="process">In Process</option>
+            <option value="returned">Returned</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="loadChequeReceiptReport()">FIND</button>
+        <button class="btn btn-outline" onclick="window.print()">PRINT</button>
+      </div>
+      <div id="report-table-area"><div class="no-data">Select filter and click FIND</div></div>
+    </div>`;
   } else if (tab==='CHEQUE VOUCHER') {
-    area.innerHTML = `<div class="report-main" style="width:100%"><div class="no-data">Select filter to view cheque vouchers</div></div>`;
+    area.innerHTML = `<div class="report-main" style="width:100%">
+      <div class="filter-row">
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="rpt-cv-status">
+            <option value="">All</option>
+            <option value="hand">In Hand</option>
+            <option value="process">In Process</option>
+            <option value="returned">Returned</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="loadChequeVoucherReport()">FIND</button>
+        <button class="btn btn-outline" onclick="window.print()">PRINT</button>
+      </div>
+      <div id="report-table-area"><div class="no-data">Select filter and click FIND</div></div>
+    </div>`;
   } else if (tab==='PAYMENT') {
     area.innerHTML = `<div class="report-main" style="width:100%">
       <div class="filter-row">
@@ -2064,7 +2232,10 @@ async function loadSupplierReport(subTab = 'list', el = null) {
     rta.innerHTML = `<table><thead><tr><th>Code</th><th>Name</th><th>NIC</th><th>Tel</th><th class="text-right">Debit Balance</th></tr></thead>
       <tbody>${data.data.map(s => `<tr><td>${s.code}</td><td>${s.name}</td><td>${s.nic||'-'}</td><td>${s.tel1||'-'}</td><td class="text-right">${fmt(s.debitBalance)}</td></tr>`).join('')}</tbody></table>`;
   } else {
-    rta.innerHTML = '<div class="no-data">Statement report coming soon...</div>';
+    const data = await apiFetch(`/suppliers?search=${supName||''}&limit=100`);
+    if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No suppliers found</div>'; return; }
+    rta.innerHTML = `<table><thead><tr><th>Code</th><th>Name</th><th class="text-right">Debit Balance</th></tr></thead>
+      <tbody>${data.data.map(s => `<tr><td>${s.code}</td><td>${s.name}</td><td class="text-right fw-bold" style="color:var(--btn-red);">${fmt(s.debitBalance)}</td></tr>`).join('')}</tbody></table>`;
   }
 }
 
@@ -2111,6 +2282,24 @@ async function loadPaymentReport() {
   html += (data.vouchers||[]).map(v => `<tr><td>${v.code}</td><td>${v.supplier?.name||'-'}</td><td>${fmtDate(v.date)}</td><td class="text-right">${fmt(v.settleAmt)}</td></tr>`).join('');
   html += '</tbody></table>';
   rta.innerHTML = html;
+}
+
+async function loadChequeReceiptReport() {
+  const status = document.getElementById('rpt-cr-status')?.value;
+  const data = await apiFetch(`/reports/cheque-receipt?status=${status||''}&limit=50`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No cheque receipts found</div>'; return; }
+  rta.innerHTML = `<table><thead><tr><th>Code</th><th>Customer</th><th>Bank</th><th>Date</th><th>Dep. Date</th><th>Status</th><th class="text-right">Amount</th></tr></thead>
+    <tbody>${data.data.map(r => `<tr><td>${r.code}</td><td>${r.customer?.name||'-'}</td><td>${r.bank||'-'}</td><td>${fmtDate(r.date)}</td><td>${fmtDate(r.depositDate)}</td><td><span class="badge badge-info">${r.status||'-'}</span></td><td class="text-right">${fmt(r.amount)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function loadChequeVoucherReport() {
+  const status = document.getElementById('rpt-cv-status')?.value;
+  const data = await apiFetch(`/reports/cheque-voucher?status=${status||''}&limit=50`);
+  const rta = document.getElementById('report-table-area');
+  if (!data?.data?.length) { rta.innerHTML = '<div class="no-data">No cheque vouchers found</div>'; return; }
+  rta.innerHTML = `<table><thead><tr><th>Code</th><th>Supplier</th><th>Bank</th><th>Date</th><th>Dep. Date</th><th>Status</th><th class="text-right">Amount</th></tr></thead>
+    <tbody>${data.data.map(r => `<tr><td>${r.code}</td><td>${r.supplier?.name||'-'}</td><td>${r.bank||'-'}</td><td>${fmtDate(r.date)}</td><td>${fmtDate(r.depositDate)}</td><td><span class="badge badge-info">${r.status||'-'}</span></td><td class="text-right">${fmt(r.amount)}</td></tr>`).join('')}</tbody></table>`;
 }
 
 // ============================================================
@@ -2228,7 +2417,7 @@ async function loadExpenses() {
 
 async function openExpenseModal() {
   const types = await apiFetch('/expenses-types?limit=100');
-  const typeOpts = (types?.data||[]).map(t=>`<option value="${t._id}">${t.name}</option>`).join('');
+  const typeOpts = (types?.data||[]).map(t=>`<option value="${t.name}"></option>`).join('');
   openFormModal('Add Expense',`
     <div class="form-grid">
       <div class="form-group"><label class="form-label">Type</label>

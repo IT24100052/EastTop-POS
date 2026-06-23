@@ -33,9 +33,27 @@ const makeCrudRouter = (Model, populateFields = []) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  const resolveRefs = async (body) => {
+    const mongoose = require('mongoose');
+    for (const key of Object.keys(body)) {
+      const val = body[key];
+      const pathDef = Model.schema.paths[key];
+      if (pathDef && pathDef.instance === 'ObjectID' && pathDef.options && pathDef.options.ref) {
+        if (typeof val === 'string' && val.length > 0 && !mongoose.Types.ObjectId.isValid(val)) {
+          const RefModel = mongoose.model(pathDef.options.ref);
+          let entity = await RefModel.findOne({ name: new RegExp('^' + val.trim() + '$', 'i') });
+          if (!entity) entity = await RefModel.create({ name: val.trim() });
+          body[key] = entity._id;
+        }
+      }
+    }
+  };
+
   router.post('/', async (req, res) => {
     try {
-      const item = new Model(req.body);
+      const body = { ...req.body };
+      await resolveRefs(body);
+      const item = new Model(body);
       await item.save();
       res.status(201).json(item);
     } catch (err) { res.status(400).json({ error: err.message }); }
@@ -43,7 +61,9 @@ const makeCrudRouter = (Model, populateFields = []) => {
 
   router.put('/:id', async (req, res) => {
     try {
-      const item = await Model.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+      const body = { ...req.body };
+      await resolveRefs(body);
+      const item = await Model.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
       if (!item) return res.status(404).json({ error: 'Not found' });
       res.json(item);
     } catch (err) { res.status(400).json({ error: err.message }); }

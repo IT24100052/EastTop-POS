@@ -49,21 +49,12 @@ itemSchema.pre('save', async function (next) {
       const count = await mongoose.model('Item').countDocuments();
       this.code = 'ITEM' + String(count + 1).padStart(6, '0');
     }
-    await resolveRefs(this);
     next();
   } catch (err) {
     next(err);
   }
 });
 
-itemSchema.pre('findOneAndUpdate', async function (next) {
-  try {
-    const update = this.getUpdate();
-    await resolveRefs(update);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
-
-module.exports = mongoose.model('Item', itemSchema);
+const Item = mongoose.model('Item', itemSchema);
+Item.resolveRefs = resolveRefs;
+module.exports = Item;

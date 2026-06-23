@@ -4,7 +4,6 @@ const Item = require('./models/Item');
 const Customer = require('./models/Customer');
 const Supplier = require('./models/Supplier');
 const User = require('./models/User');
-const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/easttop';
@@ -29,8 +28,8 @@ const seed = async () => {
     console.log('Cleared existing data');
 
     // Create Admin
-    const hash = await bcrypt.hash('admin123', 10);
-    await User.create({ username: 'admin', password: hash, role: 'admin' });
+    // NOTE: User model pre('save') handles bcrypt hashing automatically
+    await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
     console.log('Added Admin User: admin / admin123');
 
     // 1. Categories

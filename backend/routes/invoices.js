@@ -54,7 +54,9 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const invoice = new Invoice(req.body);
+    const body = { ...req.body };
+    await Invoice.resolveRefs(body);
+    const invoice = new Invoice(body);
     await invoice.save();
     
     // Decrement stock
@@ -69,7 +71,9 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const body = { ...req.body };
+    await Invoice.resolveRefs(body);
+    const invoice = await Invoice.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
     res.json(invoice);
   } catch (err) { res.status(400).json({ error: err.message }); }

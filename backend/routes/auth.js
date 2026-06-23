@@ -7,11 +7,11 @@ const authMiddleware = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
 
 // Auto-seed default admin if no users exist
+// NOTE: User model pre('save') handles hashing — do NOT hash manually here
 const seedAdmin = async () => {
   const count = await User.countDocuments();
   if (count === 0) {
-    const hash = await bcrypt.hash('admin123', 10);
-    await User.create({ username: 'admin', password: hash, role: 'admin' });
+    await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
     console.log('Default admin created: admin / admin123');
   }
 };
@@ -48,9 +48,8 @@ router.post('/register',
       const { username, password, role } = req.body;
       const exists = await User.findOne({ username });
       if (exists) return res.status(400).json({ error: 'Username already exists' });
-      const hash = await bcrypt.hash(password, 10);
-      const user = await User.create({ username, password: hash, role });
-      res.status(201).json({ message: 'User registered successfully', user });
+      const user = await User.create({ username, password, role });
+      res.status(201).json({ message: 'User registered successfully', user: { id: user._id, username: user.username, role: user.role } });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

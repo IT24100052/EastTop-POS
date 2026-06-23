@@ -19,7 +19,7 @@ const stockTransferSchema = new mongoose.Schema({
   locationTo: { type: String, required: true },
   date: { type: Date, default: Date.now },
   remarks: String,
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 } }], required: true }
+  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 } }], default: [] }
 }, { timestamps: true });
 stockTransferSchema.pre('save', autoCode('3001'));
 
@@ -28,7 +28,7 @@ const salesOrderSchema = new mongoose.Schema({
   code: { type: String, unique: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
   date: { type: Date, default: Date.now },
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], required: true },
+  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
   total: { type: Number, default: 0, min: 0 },
   status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'pending' }
 }, { timestamps: true });
@@ -39,7 +39,7 @@ const salesQuotationSchema = new mongoose.Schema({
   code: { type: String, unique: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
   date: { type: Date, default: Date.now },
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], required: true },
+  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
   total: { type: Number, default: 0, min: 0 }
 }, { timestamps: true });
 salesQuotationSchema.pre('save', autoCode('4520'));
@@ -50,7 +50,7 @@ const stockIssueSchema = new mongoose.Schema({
   referenceNo: String,
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   date: { type: Date, default: Date.now },
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], required: true },
+  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
   total: { type: Number, default: 0, min: 0 }
 }, { timestamps: true });
 stockIssueSchema.pre('save', autoCode('5001'));
@@ -75,7 +75,7 @@ const salesReturnSchema = new mongoose.Schema({
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
   date: { type: Date, default: Date.now },
   amount: { type: Number, default: 0, min: 0 },
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], required: true }
+  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] }
 }, { timestamps: true });
 salesReturnSchema.pre('save', autoCode('3020'));
 
@@ -109,7 +109,7 @@ const purchaseReturnSchema = new mongoose.Schema({
   code: { type: String, unique: true },
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', required: true },
   returnDate: { type: Date, default: Date.now },
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], required: true },
+  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
   total: { type: Number, default: 0, min: 0 }
 }, { timestamps: true });
 purchaseReturnSchema.pre('save', autoCode('5200'));

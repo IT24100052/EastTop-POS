@@ -29,16 +29,19 @@ invoiceSchema.pre('save', async function (next) {
       this.code = '1001' + String(count + 1).padStart(7, '0');
     }
 
-    // Auto-resolve customer name
-    if (typeof this.customer === 'string' && this.customer.length > 0 && !mongoose.Types.ObjectId.isValid(this.customer)) {
-      const Customer = mongoose.model('Customer');
-      let entity = await Customer.findOne({ name: new RegExp('^' + this.customer + '$', 'i') });
-      if (!entity) entity = await Customer.create({ name: this.customer });
-      this.customer = entity._id;
-    }
     next();
   } catch (err) {
     next(err);
   }
 });
-module.exports = mongoose.model('Invoice', invoiceSchema);
+
+const Invoice = mongoose.model('Invoice', invoiceSchema);
+Invoice.resolveRefs = async function(body) {
+  if (typeof body.customer === 'string' && body.customer.length > 0 && !mongoose.Types.ObjectId.isValid(body.customer)) {
+    const Customer = mongoose.model('Customer');
+    let entity = await Customer.findOne({ name: new RegExp('^' + body.customer + '$', 'i') });
+    if (!entity) entity = await Customer.create({ name: body.customer });
+    body.customer = entity._id;
+  }
+};
+module.exports = Invoice;

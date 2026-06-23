@@ -13,7 +13,7 @@ const grnSchema = new mongoose.Schema({
       unitCost:    { type: Number, min: 0 },
       total:       Number
     }],
-    required: true
+    default: []
   },
   total:   { type: Number, default: 0 },
   status:  { type: String, enum: ['Pending', 'Paid', 'Partial'], default: 'Pending' },

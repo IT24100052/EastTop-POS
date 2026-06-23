@@ -34,11 +34,6 @@ router.post('/', async (req, res) => {
   try {
     const body = { ...req.body };
     
-    // Validate items array exists
-    if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-      return res.status(400).json({ error: 'At least one item is required' });
-    }
-    
     // If supplier sent as name string, find it
     if (body.supplierName && !body.supplier) {
       const sup = await Supplier.findOne({ name: new RegExp('^' + body.supplierName + '$', 'i') });
