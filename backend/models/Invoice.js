@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateNextCode } = require('../utils/codeGenerator');
 const invoiceItemSchema = new mongoose.Schema({
   item:        { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
   description: String,
@@ -25,10 +26,8 @@ const invoiceSchema = new mongoose.Schema({
 invoiceSchema.pre('save', async function (next) {
   try {
     if (!this.code) {
-      const count = await mongoose.model('Invoice').countDocuments();
-      this.code = '1001' + String(count + 1).padStart(7, '0');
+      this.code = await generateNextCode('Invoice', '1001', 7);
     }
-
     next();
   } catch (err) {
     next(err);
@@ -40,7 +39,7 @@ Invoice.resolveRefs = async function(body) {
   if (typeof body.customer === 'string' && body.customer.length > 0 && !mongoose.Types.ObjectId.isValid(body.customer)) {
     const Customer = mongoose.model('Customer');
     let entity = await Customer.findOne({ name: new RegExp('^' + body.customer + '$', 'i') });
-    if (!entity) entity = await Customer.create({ name: body.customer });
+    if (!entity) throw new Error(`Customer "${body.customer}" not found. Please create the customer first.`);
     body.customer = entity._id;
   }
 };

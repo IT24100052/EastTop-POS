@@ -1,14 +1,17 @@
 const mongoose = require('mongoose');
+const { nicSchemaType, phoneSchemaType, emailSchemaType } = require('../utils/validators');
+const { generateNextCode } = require('../utils/codeGenerator');
+
 const supplierSchema = new mongoose.Schema({
   code:         { type: String, unique: true },
-  customCode:   { type: String, maxlength: 50 },
+  customCode:   { type: String, maxlength: 50, unique: true, sparse: true, trim: true },
   name:         { type: String, required: true, trim: true, maxlength: 100 },
-  nic:          { type: String, maxlength: 50 },
+  nic:          { ...nicSchemaType, required: true, unique: true },
   address:      { type: String, maxlength: 200 },
   city:         { type: String, maxlength: 50 },
-  tel1:         { type: String, maxlength: 20, match: /^[\d\-\+\(\)]*$/ },
-  tel2:         { type: String, maxlength: 20, match: /^[\d\-\+\(\)]*$/ },
-  email:        { type: String, maxlength: 100, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+  tel1:         { ...phoneSchemaType, required: true, unique: true },
+  tel2:         { ...phoneSchemaType, unique: true, sparse: true },
+  email:        { ...emailSchemaType, required: true, unique: true },
   debitBalance: { type: Number, default: 0, min: 0 },
   active:       { type: Boolean, default: true }
 }, { timestamps: true });
@@ -16,8 +19,7 @@ const supplierSchema = new mongoose.Schema({
 supplierSchema.pre('save', async function (next) {
   try {
     if (!this.code) {
-      const count = await mongoose.model('Supplier').countDocuments();
-      this.code = '2111' + String(count + 1).padStart(7, '0');
+      this.code = await generateNextCode('Supplier', '2111', 7);
     }
     next();
   } catch (err) {

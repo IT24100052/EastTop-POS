@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+const { generateNextCode } = require('../utils/codeGenerator');
 const grnSchema = new mongoose.Schema({
   code:        { type: String, unique: true },
   supplier:    { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier' },
-  invoiceCode: String,
+  invoiceCode: { type: String, unique: true, sparse: true, trim: true },
   date:        { type: Date, default: Date.now },
   grnDate:     { type: Date, default: Date.now },
   items: {
@@ -23,8 +24,7 @@ const grnSchema = new mongoose.Schema({
 grnSchema.pre('save', async function (next) {
   try {
     if (!this.code) {
-      const count = await mongoose.model('GRN').countDocuments();
-      this.code = '2120' + String(count + 1).padStart(7, '0');
+      this.code = await generateNextCode('GRN', '2120', 7);
     }
     next();
   } catch (err) {

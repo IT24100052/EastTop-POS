@@ -1,6 +1,7 @@
 const express  = require('express');
 const router   = express.Router();
 const Invoice  = require('../models/Invoice');
+const { Expense, SalesReturn } = require('../models/Others');
 
 router.get('/', async (req, res) => {
   try {
@@ -24,10 +25,23 @@ router.get('/', async (req, res) => {
     ]);
 
     const sixAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const monthlySalesChart = await Invoice.aggregate([
-      { $match: { date: { $gte: sixAgo }, status: { $ne: 'Reversed' } } },
-      { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } }, total: { $sum: '$total' } } },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    
+    const [monthlySalesChart, monthlyExpensesChart, monthlyReturnsChart] = await Promise.all([
+      Invoice.aggregate([
+        { $match: { date: { $gte: sixAgo }, status: { $ne: 'Reversed' } } },
+        { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } }, total: { $sum: '$total' } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+      Expense.aggregate([
+        { $match: { date: { $gte: sixAgo } } },
+        { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } }, total: { $sum: '$total' } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+      SalesReturn.aggregate([
+        { $match: { date: { $gte: sixAgo } } },
+        { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } }, total: { $sum: '$amount' } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ])
     ]);
 
     res.json({
@@ -36,6 +50,8 @@ router.get('/', async (req, res) => {
       monthlySales:     monthly[0]?.total   || 0,
       annualSales:      annual[0]?.total    || 0,
       monthlySalesChart,
+      monthlyExpensesChart,
+      monthlyReturnsChart,
       date: now
     });
   } catch (err) { res.status(500).json({ error: err.message }); }

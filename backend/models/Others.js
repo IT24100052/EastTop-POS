@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
+const { phoneSchemaType, emailSchemaType, nameValidator } = require('../utils/validators');
+const { generateNextCode } = require('../utils/codeGenerator');
 
-const autoCode = (prefix) => async function(next) {
+const autoCode = (prefix) => async function (next) {
   try {
     if (!this.code) {
-      const count = await this.constructor.countDocuments();
-      this.code = prefix + String(count + 1).padStart(7, '0');
+      this.code = await generateNextCode(this.constructor, prefix, 7);
     }
     next();
   } catch (err) {
@@ -25,12 +26,14 @@ stockTransferSchema.pre('save', autoCode('3001'));
 
 // Sales Order
 const salesOrderSchema = new mongoose.Schema({
-  code: { type: String, unique: true },
-  customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
-  date: { type: Date, default: Date.now },
-  items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
-  total: { type: Number, default: 0, min: 0 },
-  status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'pending' }
+  code:        { type: String, unique: true },
+  invoiceRef:  { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', unique: true, sparse: true },
+  invoiceCode: { type: String, unique: true, sparse: true, trim: true },
+  customer:    { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
+  date:        { type: Date, default: Date.now },
+  items:       { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, description: String, qty: { type: Number, min: 0 }, unitPrice: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
+  total:       { type: Number, default: 0, min: 0 },
+  status:      { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'confirmed' }
 }, { timestamps: true });
 salesOrderSchema.pre('save', autoCode('4001'));
 
@@ -47,7 +50,7 @@ salesQuotationSchema.pre('save', autoCode('4520'));
 // Stock Issue
 const stockIssueSchema = new mongoose.Schema({
   code: { type: String, unique: true },
-  referenceNo: String,
+  referenceNo: { type: String, unique: true, sparse: true, trim: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   date: { type: Date, default: Date.now },
   items: { type: [{ item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' }, qty: { type: Number, min: 0 }, total: { type: Number, min: 0 } }], default: [] },
@@ -61,7 +64,7 @@ const paymentReceiptSchema = new mongoose.Schema({
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
   total: { type: Number, default: 0, min: 0 },
   settleAmt: { type: Number, default: 0, min: 0 },
-  overPayment: { type: Number, default: 0, min: 0 },
+  balanceRemaining: { type: Number, default: 0, min: 0 },
   date: { type: Date, default: Date.now },
   status: { type: String, enum: ['Active', 'Pending', 'Cancelled'], default: 'Active' },
   notes: String
@@ -98,7 +101,7 @@ const paymentVoucherSchema = new mongoose.Schema({
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', required: true },
   total: { type: Number, default: 0, min: 0 },
   settleAmt: { type: Number, default: 0, min: 0 },
-  overPayment: { type: Number, default: 0, min: 0 },
+  balanceRemaining: { type: Number, default: 0, min: 0 },
   date: { type: Date, default: Date.now },
   status: { type: String, enum: ['Active', 'Pending', 'Cancelled'], default: 'Active' }
 }, { timestamps: true });
@@ -131,9 +134,9 @@ chequeVoucherSchema.pre('save', autoCode('5300'));
 // Sales Rep
 const salesRepSchema = new mongoose.Schema({
   code: { type: String, unique: true },
-  name: { type: String, required: true, trim: true, maxlength: 100 },
-  contactNo: { type: String, maxlength: 20, match: /^[\d\-\+\(\)]*$/ },
-  email: { type: String, maxlength: 100, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }
+  name: { type: String, required: true, trim: true, maxlength: 100, validate: nameValidator },
+  contactNo: { ...phoneSchemaType, required: true, unique: true },
+  email: { ...emailSchemaType, required: true, unique: true }
 }, { timestamps: true });
 salesRepSchema.pre('save', autoCode('2171'));
 
@@ -163,18 +166,18 @@ const expenseTypeSchema = new mongoose.Schema({
 expenseTypeSchema.pre('save', autoCode('2261'));
 
 module.exports = {
-  StockTransfer:  mongoose.model('StockTransfer',  stockTransferSchema),
-  SalesOrder:     mongoose.model('SalesOrder',     salesOrderSchema),
+  StockTransfer: mongoose.model('StockTransfer', stockTransferSchema),
+  SalesOrder: mongoose.model('SalesOrder', salesOrderSchema),
   SalesQuotation: mongoose.model('SalesQuotation', salesQuotationSchema),
-  StockIssue:     mongoose.model('StockIssue',     stockIssueSchema),
+  StockIssue: mongoose.model('StockIssue', stockIssueSchema),
   PaymentReceipt: mongoose.model('PaymentReceipt', paymentReceiptSchema),
-  SalesReturn:    mongoose.model('SalesReturn',    salesReturnSchema),
-  ChequeReceipt:  mongoose.model('ChequeReceipt',  chequeReceiptSchema),
+  SalesReturn: mongoose.model('SalesReturn', salesReturnSchema),
+  ChequeReceipt: mongoose.model('ChequeReceipt', chequeReceiptSchema),
   PaymentVoucher: mongoose.model('PaymentVoucher', paymentVoucherSchema),
   PurchaseReturn: mongoose.model('PurchaseReturn', purchaseReturnSchema),
-  ChequeVoucher:  mongoose.model('ChequeVoucher',  chequeVoucherSchema),
-  SalesRep:       mongoose.model('SalesRep',       salesRepSchema),
-  Route:          mongoose.model('Route',          routeSchema),
-  Expense:        mongoose.model('Expense',        expenseSchema),
-  ExpenseType:    mongoose.model('ExpenseType',    expenseTypeSchema),
+  ChequeVoucher: mongoose.model('ChequeVoucher', chequeVoucherSchema),
+  SalesRep: mongoose.model('SalesRep', salesRepSchema),
+  Route: mongoose.model('Route', routeSchema),
+  Expense: mongoose.model('Expense', expenseSchema),
+  ExpenseType: mongoose.model('ExpenseType', expenseTypeSchema),
 };

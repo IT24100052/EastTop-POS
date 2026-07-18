@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateNextCode } = require('../utils/codeGenerator');
 
 const makeSchema = (prefix) => {
   const schema = new mongoose.Schema({
@@ -9,8 +10,7 @@ const makeSchema = (prefix) => {
   schema.pre('save', async function (next) {
     try {
       if (!this.code) {
-        const count = await this.constructor.countDocuments();
-        this.code = prefix + String(count + 1).padStart(7, '0');
+        this.code = await generateNextCode(this.constructor, prefix, 7);
       }
       next();
     } catch (err) {
@@ -32,8 +32,7 @@ const unitSchema = new mongoose.Schema({
 unitSchema.pre('save', async function (next) {
   try {
     if (!this.code) {
-      const count = await mongoose.model('Unit').countDocuments();
-      this.code = '2061' + String(count + 1).padStart(7, '0');
+      this.code = await generateNextCode('Unit', '2061', 7);
     }
     next();
   } catch (err) {

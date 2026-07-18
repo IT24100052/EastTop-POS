@@ -3,29 +3,26 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const loggingMiddleware = require('./middleware/loggingMiddleware');
 require('dotenv').config();
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware (relaxed for dev)
+app.use(helmet({ contentSecurityPolicy: false }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
+// Rate limiting - generous for POS use
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 2000 });
 app.use(limiter);
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
-  credentials: true
-}));
+// CORS - allow ALL origins for development
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
 
-app.use(express.json());
-app.use(loggingMiddleware);
+// Simple request logger
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/easttop';
 mongoose.connect(MONGO_URI)
@@ -63,8 +60,9 @@ app.use('/api/expenses',          require('./routes/expenses'));
 app.use('/api/expenses-types',    require('./routes/expensesTypes'));
 
 const errorHandler = require('./middleware/errorHandler');
+
+// Global error handler
 app.use(errorHandler);
 
-
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log('EastTop server running on http://localhost:' + PORT));
+app.listen(PORT, () => console.log(`EastTop server running on http://localhost:${PORT}`));

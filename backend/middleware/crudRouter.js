@@ -33,15 +33,32 @@ const makeCrudRouter = (Model, populateFields = []) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // Strip HTML tags and collapse whitespace on all string fields
+  const sanitizeBody = (body) => {
+    for (const key of Object.keys(body)) {
+      if (typeof body[key] === 'string') {
+        // Remove HTML/script tags
+        body[key] = body[key]
+          .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/javascript:/gi, '')
+          // Trim and collapse multiple spaces
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+    }
+  };
+
   const resolveRefs = async (body) => {
     const mongoose = require('mongoose');
+    sanitizeBody(body);
     for (const key of Object.keys(body)) {
       const val = body[key];
       const pathDef = Model.schema.paths[key];
-      if (pathDef && pathDef.instance === 'ObjectID' && pathDef.options && pathDef.options.ref) {
+      if (pathDef && (pathDef.instance === 'ObjectID' || pathDef.instance === 'ObjectId') && pathDef.options && pathDef.options.ref) {
         if (typeof val === 'string' && val.length > 0 && !mongoose.Types.ObjectId.isValid(val)) {
           const RefModel = mongoose.model(pathDef.options.ref);
-          let entity = await RefModel.findOne({ name: new RegExp('^' + val.trim() + '$', 'i') });
+          let entity = await RefModel.findOne({ $or: [{ name: new RegExp('^' + val.trim() + '$', 'i') }, { code: val.trim() }] });
           if (!entity) entity = await RefModel.create({ name: val.trim() });
           body[key] = entity._id;
         }

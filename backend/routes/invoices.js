@@ -2,6 +2,8 @@ const express = require('express');
 const router  = express.Router();
 const Invoice = require('../models/Invoice');
 const Item    = require('../models/Item');
+const { SalesOrder } = require('../models/Others');
+const { generateNextCode } = require('../utils/codeGenerator');
 
 const buildQuery = (req) => {
   const { search, customer, status } = req.query;
@@ -43,28 +45,46 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'At least one item is required' });
     }
 
-    // Check stock availability
-    for (const line of req.body.items) {
-      if (line.item) {
-        const item = await Item.findById(line.item);
-        if (!item) return res.status(404).json({ error: `Item ${line.item} not found` });
-        if (item.stockQuantity < line.qty) {
-          return res.status(400).json({ error: `Insufficient stock for ${item.name}. Available: ${item.stockQuantity}, Required: ${line.qty}` });
-        }
-      }
-    }
-
     const body = { ...req.body };
     await Invoice.resolveRefs(body);
     const invoice = new Invoice(body);
     await invoice.save();
-    
+
     // Decrement stock
     for (const line of invoice.items) {
       if (line.item) {
         await Item.findByIdAndUpdate(line.item, { $inc: { stockQuantity: -line.qty } });
       }
     }
+
+    // Auto-create Sales Order (idempotent — safe to call multiple times)
+    try {
+      const existing = await SalesOrder.findOne({ invoiceRef: invoice._id });
+      if (!existing) {
+        const soCode = await generateNextCode(SalesOrder, '4001', 7);
+        const soItems = invoice.items.map(line => ({
+          item:        line.item || undefined,
+          description: line.description || '',
+          qty:         line.qty,
+          unitPrice:   line.unitPrice,
+          total:       line.total
+        }));
+        await SalesOrder.create({
+          code:        soCode,
+          invoiceRef:  invoice._id,
+          invoiceCode: invoice.code,
+          customer:    invoice.customer || undefined,
+          date:        invoice.date,
+          items:       soItems,
+          total:       invoice.total,
+          status:      'confirmed'
+        });
+      }
+    } catch (soErr) {
+      // Sales Order creation failure must not break the invoice response
+      console.error('Auto SalesOrder creation error:', soErr.message);
+    }
+
     res.status(201).json(invoice);
   } catch (err) { res.status(400).json({ error: err.message }); }
 });

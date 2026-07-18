@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateNextCode } = require('../utils/codeGenerator');
 const itemSchema = new mongoose.Schema({
   code:          { type: String, unique: true },
   type:          { type: String, enum: ['Product', 'Service'], default: 'Product' },
@@ -46,8 +47,7 @@ async function resolveRefs(doc) {
 itemSchema.pre('save', async function (next) {
   try {
     if (!this.code) {
-      const count = await mongoose.model('Item').countDocuments();
-      this.code = 'ITEM' + String(count + 1).padStart(6, '0');
+      this.code = await generateNextCode('Item', 'ITEM', 6);
     }
     next();
   } catch (err) {
