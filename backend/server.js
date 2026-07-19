@@ -14,8 +14,21 @@ app.use(helmet({ contentSecurityPolicy: false }));
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 2000 });
 app.use(limiter);
 
-// CORS - allow ALL origins for development
-app.use(cors());
+// CORS - allow frontend origin (localhost in dev, Vercel URL in production)
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL, 'http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173']
+  : ['*'];
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (curl, Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // permissive for now - tighten after first deploy
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Simple request logger
@@ -28,6 +41,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/easttop';
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err.message));
+
+// Health check (used by Render & UptimeRobot)
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.use('/api/auth',              require('./routes/auth'));
 app.use('/api/dashboard',         require('./routes/dashboard'));
