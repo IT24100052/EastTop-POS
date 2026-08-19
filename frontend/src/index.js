@@ -899,9 +899,9 @@
 
     function openAddModal() {
       const s = window._listState;
-      if (s.title === 'Sales Return') {
-        if (typeof openSalesReturnModal !== 'undefined') return openSalesReturnModal();
-        if (typeof window.openSalesReturnModal !== 'undefined') return window.openSalesReturnModal();
+      if (s && s.title && s.title.trim().toLowerCase() === 'sales return') {
+        openSalesReturnModal();
+        return;
       }
       openFormModal('Add ' + s.title, s.formFn(null), () => saveItem(null, s.formFn));
     }
