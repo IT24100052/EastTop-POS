@@ -57,7 +57,13 @@ async function main() {
       custSkip++;
       continue;
     }
-    const result = await post('/customers', cust);
+    const payload = {
+      ...cust,
+      tel: cust.tel1 || `0${Math.floor(Math.random() * 900000000) + 100000000}`, // random 10 digit
+      email: `${cust.name.replace(/\s+/g, '').toLowerCase() || 'cust'}@example.com`,
+      nic: `${Math.floor(Math.random() * 900000000) + 100000000}V`
+    };
+    const result = await post('/customers', payload);
     if (result) {
       console.log(`  ✅ ADD   ${cust.name} – Code: ${cust.code}`);
       custOk++;
