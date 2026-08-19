@@ -80,5 +80,12 @@ const errorHandler = require('./middleware/errorHandler');
 // Global error handler
 app.use(errorHandler);
 
+app.get("/", (req, res) => {
+    res.json({
+        message: "EastTop POS Backend API is running",
+        status: "success"
+    });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`EastTop server running on http://localhost:${PORT}`));
