@@ -899,6 +899,10 @@
 
     function openAddModal() {
       const s = window._listState;
+      if (s.title === 'Sales Return') {
+        if (typeof openSalesReturnModal !== 'undefined') return openSalesReturnModal();
+        if (typeof window.openSalesReturnModal !== 'undefined') return window.openSalesReturnModal();
+      }
       openFormModal('Add ' + s.title, s.formFn(null), () => saveItem(null, s.formFn));
     }
 
@@ -1008,6 +1012,255 @@
   <input name="date" class="form-control" type="date" value="${row?.date ? row.date.substring(0, 10) : today()}"/></div>
   <div class="form-group"><label class="form-label">Amount *</label>
   <input name="amount" class="form-control" data-validate="price" type="number" value="${row?.amount || 0}" min="0" required/></div>`;
+    }
+
+
+    // ============================================================
+    // SALES RETURN (CUSTOM UI)
+    // ============================================================
+    window._currentSalesReturnInvoice = null;
+
+    function openSalesReturnModal() {
+      const html = `
+        <div class="form-group">
+          <label class="form-label">Invoice Code *</label>
+          <div style="display:flex; gap:10px;">
+            <input id="sr-invoice-code" class="form-control" placeholder="e.g. 1001000001" onkeypress="if(event.key === 'Enter') searchInvoiceForReturn()"/>
+            <button type="button" class="btn btn-primary" onclick="searchInvoiceForReturn()">Search</button>
+          </div>
+          <small id="sr-error" style="color:red; display:none; margin-top:5px;"></small>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Customer</label>
+          <input id="sr-customer-name" class="form-control" disabled/>
+          <input id="sr-customer-id" type="hidden"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input id="sr-date" class="form-control" type="date" value="${today()}"/>
+        </div>
+
+        <div id="sr-details-section" style="display:none; margin-top: 20px;">
+          <h5>Invoice / Order Details</h5>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped" style="margin-top:10px;">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="sr-select-all" onchange="toggleAllReturnItems(this)"/></th>
+                  <th>Product</th>
+                  <th>Qty Sold</th>
+                  <th>Unit Price</th>
+                  <th>Previously Returned</th>
+                  <th>Return Qty</th>
+                  <th>Return Amount</th>
+                </tr>
+              </thead>
+              <tbody id="sr-items-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div class="form-group" style="margin-top: 15px;">
+            <label class="form-label">Total Amount *</label>
+            <input id="sr-total-amount" class="form-control" type="number" value="0" disabled/>
+          </div>
+        </div>
+      `;
+      openFormModal('Add Sales Return', html, () => saveSalesReturn());
+    }
+
+    async function searchInvoiceForReturn() {
+      const codeInput = document.getElementById('sr-invoice-code');
+      const errLabel = document.getElementById('sr-error');
+      const detailsSection = document.getElementById('sr-details-section');
+      
+      const code = codeInput.value.trim();
+      if (!code) return;
+
+      errLabel.style.display = 'none';
+      errLabel.textContent = '';
+      detailsSection.style.display = 'none';
+      window._currentSalesReturnInvoice = null;
+
+      const btn = document.querySelector('button[onclick="searchInvoiceForReturn()"]');
+      const originalText = btn.textContent;
+      btn.textContent = 'Searching...';
+      btn.disabled = true;
+
+      try {
+        const invRes = await apiFetch(`/invoices?search=${encodeURIComponent(code)}`);
+        if (!invRes.data || invRes.data.length === 0 || invRes.data[0].code.toLowerCase() !== code.toLowerCase()) {
+          errLabel.textContent = 'Invoice not found.';
+          errLabel.style.display = 'block';
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
+
+        const invoice = invRes.data[0];
+        
+        // Fetch previous returns
+        const retRes = await apiFetch(`/sales-returns/by-invoice/${invoice._id}`);
+        
+        // Calculate previously returned quantities
+        const returnedMap = {};
+        if (Array.isArray(retRes)) {
+          retRes.forEach(r => {
+            r.items.forEach(line => {
+              if (line.item) {
+                const id = typeof line.item === 'object' ? line.item._id : line.item;
+                returnedMap[id] = (returnedMap[id] || 0) + line.qty;
+              }
+            });
+          });
+        }
+
+        window._currentSalesReturnInvoice = { invoice, returnedMap };
+
+        // Populate UI
+        document.getElementById('sr-customer-name').value = invoice.customer ? invoice.customer.name : 'Walk-in Customer';
+        document.getElementById('sr-customer-id').value = invoice.customer ? invoice.customer._id : '';
+
+        const tbody = document.getElementById('sr-items-tbody');
+        tbody.innerHTML = invoice.items.map((line, idx) => {
+          if (!line.item) return '';
+          const itemId = line.item._id || line.item;
+          const itemName = line.item.name || 'Unknown';
+          const qtySold = line.qty;
+          const unitPrice = line.unitPrice;
+          const returnedQty = returnedMap[itemId] || 0;
+          const availableToReturn = qtySold - returnedQty;
+          
+          if (availableToReturn <= 0) return ''; // Cannot return anymore
+
+          return `
+            <tr data-item-id="${itemId}" data-unit-price="${unitPrice}" data-max="${availableToReturn}">
+              <td><input type="checkbox" class="sr-item-checkbox" onchange="calculateReturnAmount()"/></td>
+              <td>${itemName}</td>
+              <td>${qtySold}</td>
+              <td>${fmt(unitPrice)}</td>
+              <td>${returnedQty}</td>
+              <td>
+                <input type="number" class="form-control sr-return-qty" value="0" min="0" max="${availableToReturn}" oninput="calculateReturnAmount()" disabled style="width: 80px;" />
+              </td>
+              <td class="sr-line-total">0.00</td>
+            </tr>
+          `;
+        }).join('');
+
+        if (tbody.innerHTML.trim() === '') {
+          errLabel.textContent = 'All items from this invoice have already been returned.';
+          errLabel.style.display = 'block';
+        } else {
+          detailsSection.style.display = 'block';
+        }
+        
+      } catch (err) {
+        errLabel.textContent = 'Error searching invoice.';
+        errLabel.style.display = 'block';
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function toggleAllReturnItems(checkbox) {
+      const checkboxes = document.querySelectorAll('.sr-item-checkbox');
+      checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+      });
+      calculateReturnAmount();
+    }
+
+    function calculateReturnAmount() {
+      let totalAmount = 0;
+      const rows = document.querySelectorAll('#sr-items-tbody tr');
+      
+      rows.forEach(row => {
+        const checkbox = row.querySelector('.sr-item-checkbox');
+        const qtyInput = row.querySelector('.sr-return-qty');
+        const lineTotalTd = row.querySelector('.sr-line-total');
+        
+        if (checkbox.checked) {
+          qtyInput.disabled = false;
+          if (qtyInput.value === '0' || qtyInput.value === '') {
+             qtyInput.value = '1';
+          }
+          
+          let qty = Number(qtyInput.value) || 0;
+          const max = Number(row.dataset.max);
+          if (qty > max) {
+            qty = max;
+            qtyInput.value = max;
+          }
+          
+          const unitPrice = Number(row.dataset.unitPrice) || 0;
+          const lineTotal = qty * unitPrice;
+          lineTotalTd.textContent = fmt(lineTotal);
+          totalAmount += lineTotal;
+        } else {
+          qtyInput.disabled = true;
+          qtyInput.value = '0';
+          lineTotalTd.textContent = '0.00';
+        }
+      });
+      
+      document.getElementById('sr-total-amount').value = totalAmount;
+    }
+
+    async function saveSalesReturn() {
+      if (!window._currentSalesReturnInvoice) {
+        alert('Please search for a valid invoice first.');
+        return;
+      }
+
+      const invoiceId = window._currentSalesReturnInvoice.invoice._id;
+      const customerId = document.getElementById('sr-customer-id').value;
+      const date = document.getElementById('sr-date').value;
+
+      const items = [];
+      const rows = document.querySelectorAll('#sr-items-tbody tr');
+      
+      rows.forEach(row => {
+        const checkbox = row.querySelector('.sr-item-checkbox');
+        if (checkbox.checked) {
+          const qty = Number(row.querySelector('.sr-return-qty').value) || 0;
+          if (qty > 0) {
+            items.push({
+              item: row.dataset.itemId,
+              qty: qty,
+              unitPrice: Number(row.dataset.unitPrice)
+            });
+          }
+        }
+      });
+
+      if (items.length === 0) {
+        alert('Please select at least one item to return with a quantity greater than 0.');
+        return;
+      }
+
+      const payload = {
+        invoice: invoiceId,
+        customer: customerId || undefined,
+        date: date,
+        amount: Number(document.getElementById('sr-total-amount').value) || 0,
+        items: items
+      };
+
+      try {
+        const res = await apiFetch('/sales-returns', { method: 'POST', body: JSON.stringify(payload) });
+        if (res?.error) {
+          alert('Error: ' + res.error);
+          return;
+        }
+        closeModal();
+        await loadList(); // Refresh the sales returns list
+        alert('Sales Return saved successfully! Inventory stock has been updated.');
+      } catch (err) {
+        alert('Error saving sales return.');
+      }
     }
 
     function salesRepColumns() {
@@ -2816,3 +3069,10 @@ if (typeof runAllValidations !== 'undefined') window.runAllValidations = runAllV
 if (typeof updateSaveBtn !== 'undefined') window.updateSaveBtn = updateSaveBtn;
 if (typeof sanitizeFormBody !== 'undefined') window.sanitizeFormBody = sanitizeFormBody;
 if (typeof validate !== 'undefined') window.validate = validate;
+
+
+if (typeof openSalesReturnModal !== 'undefined') window.openSalesReturnModal = openSalesReturnModal;
+if (typeof searchInvoiceForReturn !== 'undefined') window.searchInvoiceForReturn = searchInvoiceForReturn;
+if (typeof toggleAllReturnItems !== 'undefined') window.toggleAllReturnItems = toggleAllReturnItems;
+if (typeof calculateReturnAmount !== 'undefined') window.calculateReturnAmount = calculateReturnAmount;
+if (typeof saveSalesReturn !== 'undefined') window.saveSalesReturn = saveSalesReturn;
