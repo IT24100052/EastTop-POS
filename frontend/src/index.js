@@ -3,7 +3,7 @@
     // ============================================================
     // Auto-detect API URL: localhost for dev, Render URL for production
     const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:5000/api'
+      ? 'https://easttop-pos-backend.onrender.com/api'
       : 'https://easttop-pos-api.onrender.com/api';
     let token = localStorage.getItem('easttop_token') || '';
     let currentPage = 'dashboard';
