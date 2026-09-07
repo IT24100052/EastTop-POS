@@ -1030,30 +1030,33 @@
     #login-screen {
       position: fixed;
       inset: 0;
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, #1a4a3a 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 9999;
+      padding: 16px;
     }
 
     .login-card {
       background: #fff;
-      border-radius: 10px;
-      padding: 40px;
-      width: 360px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      border-radius: 14px;
+      padding: 36px 38px 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 24px 72px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255,255,255,0.06);
     }
 
     .login-logo {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 20px;
     }
 
     .login-logo h1 {
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 800;
       color: var(--east-color);
+      letter-spacing: -0.5px;
     }
 
     .login-logo h1 span {
@@ -1066,13 +1069,84 @@
       margin-top: 4px;
     }
 
+    /* Performance notice banner */
+    .login-perf-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 10px 13px;
+      margin-bottom: 20px;
+      font-size: 12px;
+      color: #92400e;
+      line-height: 1.45;
+    }
+
+    .login-perf-notice .perf-icon {
+      font-size: 15px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
     .login-card .form-group {
       margin-bottom: 14px;
     }
 
+    /* Password field wrapper for eye-toggle */
+    .login-pass-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .login-pass-wrap .form-control {
+      padding-right: 42px;
+      width: 100%;
+    }
+
+    .login-eye-btn {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-light);
+      font-size: 17px;
+      padding: 0;
+      border-radius: 0 4px 4px 0;
+      transition: color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .login-eye-btn:hover {
+      color: var(--accent);
+    }
+
+    .login-eye-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
     .login-btn {
       width: 100%;
-      margin-top: 8px;
+      margin-top: 6px;
+      padding: 11px 14px;
+      font-size: 14px;
+      border-radius: 8px;
+      letter-spacing: 0.2px;
+      transition: background .18s, transform .1s;
+    }
+
+    .login-btn:active {
+      transform: scale(0.98);
     }
 
     .login-error {
@@ -1080,6 +1154,83 @@
       font-size: 12px;
       text-align: center;
       margin-top: 8px;
+      min-height: 18px;
+    }
+
+    /* Demo credentials box */
+    .login-demo-box {
+      margin-top: 20px;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 14px 16px 12px;
+    }
+
+    .login-demo-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #0369a1;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .login-demo-creds {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 3px 10px;
+      font-size: 12px;
+      color: #374151;
+      margin-bottom: 11px;
+    }
+
+    .login-demo-creds .cred-label {
+      color: var(--text-light);
+      font-weight: 500;
+    }
+
+    .login-demo-creds .cred-val {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      color: #0f2535;
+    }
+
+    .login-fill-btn {
+      width: 100%;
+      background: #0369a1;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .18s, transform .1s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .login-fill-btn:hover {
+      background: #0284c7;
+    }
+
+    .login-fill-btn:active {
+      transform: scale(0.98);
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 28px 22px 24px;
+      }
+      .login-logo h1 {
+        font-size: 28px;
+      }
     }
 
     /* FOOTER */
@@ -1215,23 +1366,84 @@
   <!-- LOGIN -->
   <div id="login-screen">
     <div class="login-card">
+
+      <!-- Branding -->
       <div class="login-logo">
         <h1>EAST<span>TOP</span></h1>
-        <p>Solution By IRM</p>
+        <p>Point of Sale &mdash; Solution By IRM</p>
       </div>
+
+      <!-- Performance notice -->
+      <div class="login-perf-notice" role="status" aria-live="polite">
+        <span class="perf-icon">⚠️</span>
+        <span>Load may be slow &mdash; the system runs on a free-tier server. Please allow 30&ndash;60 seconds.</span>
+      </div>
+
+      <!-- Username -->
       <div class="form-group">
-        <label class="form-label">Username</label>
-        <input id="login-user" class="form-control" type="text" placeholder="Enter username" value="admin" />
+        <label class="form-label" for="login-user">Username</label>
+        <input id="login-user" class="form-control" type="text" placeholder="Enter username" autocomplete="username" />
       </div>
+
+      <!-- Password with eye toggle -->
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input id="login-pass" class="form-control" type="password" placeholder="Enter password" value="admin123" />
+        <label class="form-label" for="login-pass">Password</label>
+        <div class="login-pass-wrap">
+          <input id="login-pass" class="form-control" type="password" placeholder="Enter password" autocomplete="current-password" />
+          <button
+            id="login-eye-toggle"
+            class="login-eye-btn"
+            type="button"
+            aria-label="Show password"
+            onclick="(function(){
+              var inp = document.getElementById('login-pass');
+              var btn = document.getElementById('login-eye-toggle');
+              if (inp.type === 'password') {
+                inp.type = 'text';
+                btn.textContent = '🙈';
+                btn.setAttribute('aria-label', 'Hide password');
+              } else {
+                inp.type = 'password';
+                btn.textContent = '👁';
+                btn.setAttribute('aria-label', 'Show password');
+              }
+            })()"
+          >👁</button>
+        </div>
       </div>
-      <button class="btn btn-primary login-btn" onclick="doLogin()">Login</button>
-      <div id="login-error" class="login-error"></div>
-      <div style="margin-top:14px;font-size:11px;color:var(--text-light);text-align:center;">
-        Default: admin / admin123
+
+      <!-- Sign In button -->
+      <button class="btn btn-primary login-btn" id="login-submit-btn" onclick="doLogin()">Sign In</button>
+
+      <!-- Error message -->
+      <div id="login-error" class="login-error" role="alert" aria-live="assertive"></div>
+
+      <!-- Demo credentials box -->
+      <div class="login-demo-box" id="login-demo-box">
+        <div class="login-demo-title">
+          <span>🔑</span> Demo Login
+        </div>
+        <div class="login-demo-creds">
+          <span class="cred-label">Username</span>
+          <span class="cred-val">admin</span>
+          <span class="cred-label">Password</span>
+          <span class="cred-val">admin123</span>
+        </div>
+        <button
+          id="login-fill-btn"
+          class="login-fill-btn"
+          type="button"
+          onclick="(function(){
+            document.getElementById('login-user').value = 'admin';
+            document.getElementById('login-pass').value = 'admin123';
+            document.getElementById('login-pass').type = 'password';
+            document.getElementById('login-eye-toggle').textContent = '👁';
+            document.getElementById('login-eye-toggle').setAttribute('aria-label', 'Show password');
+            document.getElementById('login-user').focus();
+          })()"
+        >⚡ Fill Automatically</button>
       </div>
+
     </div>
   </div>
 
